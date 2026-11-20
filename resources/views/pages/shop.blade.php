@@ -96,12 +96,12 @@
                                     if (!\Illuminate\Support\Str::startsWith($image, ['http://', 'https://', '/'])) $image = asset('furni/images/' . $image);
                                 @endphp
                                 <article class="market-product-card">
-                                    <div class="product-image-wrap"><img src="{{ $image }}" alt="{{ $product->name }}" loading="lazy">
+                                    <div class="product-image-wrap"><a class="product-image-link" href="{{ route('products.show', $product->slug ?: $product->id) }}" aria-label="View {{ $product->name }}"><img src="{{ $image }}" alt="{{ $product->name }}" loading="lazy"></a>
                                         @auth<form method="post" action="{{ route('wishlist.toggle', $product->id) }}" class="wishlist-form async-action-form">@csrf<button class="wishlist-button {{ in_array((int) $product->id, $wishlistIds ?? [], true) ? 'is-saved' : '' }}" type="submit" aria-label="Toggle wishlist">{{ in_array((int) $product->id, $wishlistIds ?? [], true) ? '♥' : '♡' }}</button></form>
                                         @else<a class="wishlist-button" href="{{ route('login') }}" aria-label="Sign in to save {{ $product->name }}">♡</a>@endauth
                                     </div>
                                     <div class="product-card-body"><div class="product-rating"><span>★ ★ ★ ★ ★</span><small>{{ $product->rating ? number_format((float) $product->rating, 1) : 'New' }}{{ $product->review_count ? ' ('.$product->review_count.')' : '' }}</small></div>
-                                        <h3>{{ $product->name }}</h3><p>{{ \Illuminate\Support\Str::limit($product->description ?? '', 70) }}</p>
+                                        <h3><a href="{{ route('products.show', $product->slug ?: $product->id) }}">{{ $product->name }}</a></h3><p>{{ \Illuminate\Support\Str::limit($product->description ?? '', 70) }}</p>
                                         <div class="product-buy-row"><strong>{{ $price !== null ? 'Rs. ' . number_format((float) $price, 2) : 'Ask for price' }} </strong>@auth<form method="post" action="{{ route('cart.add') }}" class="async-action-form">@csrf<input type="hidden" name="variant_id" value="{{ $product->variant_id }}"><button class="add-cart" type="submit" aria-label="Add {{ $product->name }} to cart">+</button></form>@else<a href="{{ route('login') }}" class="add-cart" aria-label="Sign in to add {{ $product->name }} to cart">+</a>@endauth</div>
                                         <span class="shipping-note">{{ $product->stock_quantity > 0 ? '✓  In stock' : 'Currently unavailable' }}</span>
                                     </div>
