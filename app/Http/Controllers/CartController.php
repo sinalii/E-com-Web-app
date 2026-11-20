@@ -73,6 +73,13 @@ class CartController extends Controller
             }
         });
 
+        if ($request->expectsJson()) {
+            $cartCount = (int) DB::table('cart_item')->join('cart', 'cart.id', '=', 'cart_item.cart_id')
+                ->where('cart.user_id', $request->user()->id)->sum('cart_item.quantity');
+
+            return response()->json(['message' => 'Added to your cart.', 'cart_count' => $cartCount]);
+        }
+
         return redirect()->route('cart')->with('success', 'Added to your cart.');
     }
 
