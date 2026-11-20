@@ -56,6 +56,10 @@ class WishlistController extends Controller
             $message = 'Saved to your wishlist.';
         }
 
+        if ($request->expectsJson()) {
+            return response()->json(['saved' => ! $saved, 'message' => $message]);
+        }
+
         return back()->with('success', $message);
     }
 }

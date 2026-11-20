@@ -41,7 +41,7 @@
                     <div class="product-image-wrap"><img src="{{ $productImage }}" alt="{{ $product->name }}" loading="lazy">
                         @if(!empty($product->badge))<span class="product-badge">{{ $product->badge }}</span>@endif
                         @auth
-                            <form method="post" action="{{ route('wishlist.toggle', $product->id) }}" class="wishlist-form">@csrf<button class="wishlist-button {{ in_array((int) $product->id, $wishlistIds ?? [], true) ? 'is-saved' : '' }}" type="submit" aria-label="{{ in_array((int) $product->id, $wishlistIds ?? [], true) ? 'Remove from' : 'Save to' }} wishlist">{{ in_array((int) $product->id, $wishlistIds ?? [], true) ? '♥' : '♡' }}</button></form>
+                            <form method="post" action="{{ route('wishlist.toggle', $product->id) }}" class="wishlist-form async-action-form">@csrf<button class="wishlist-button {{ in_array((int) $product->id, $wishlistIds ?? [], true) ? 'is-saved' : '' }}" type="submit" aria-label="{{ in_array((int) $product->id, $wishlistIds ?? [], true) ? 'Remove from' : 'Save to' }} wishlist">{{ in_array((int) $product->id, $wishlistIds ?? [], true) ? '♥' : '♡' }}</button></form>
                         @else
                             <a class="wishlist-button" href="{{ route('login') }}" aria-label="Sign in to save {{ $product->name }}">♡</a>
                         @endauth
@@ -50,7 +50,7 @@
                         <h3><a href="{{ route('shop') }}">{{ $product->name }}</a></h3><p>{{ \Illuminate\Support\Str::limit($product->description ?? '', 70) }}</p>
                         <div class="product-buy-row"><strong>Rs. {{ number_format((float) $price, 2) }}</strong>
                             @auth
-                                <form method="post" action="{{ route('cart.add') }}">@csrf<input type="hidden" name="variant_id" value="{{ $product->variant_id }}"><button class="add-cart" type="submit" aria-label="Add {{ $product->name }} to cart">+</button></form>
+                                <form method="post" action="{{ route('cart.add') }}" class="async-action-form">@csrf<input type="hidden" name="variant_id" value="{{ $product->variant_id }}"><button class="add-cart" type="submit" aria-label="Add {{ $product->name }} to cart">+</button></form>
                             @else
                                 <a href="{{ route('login') }}" class="add-cart" aria-label="Sign in to add {{ $product->name }} to cart">+</a>
                             @endauth
