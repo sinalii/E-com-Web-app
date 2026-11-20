@@ -1,0 +1,195 @@
+@extends('layouts.marketplace')
+
+@section('title', $product->name.' | Marketly')
+
+@section('content')
+@php
+    $fallbackImage = 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1000&q=85';
+    $images = $product->images->isNotEmpty() ? $product->images : collect([(object) ['image_url' => $fallbackImage]]);
+    $mainImage = $images->first()->image_url ?: $fallbackImage;
+    if (!\Illuminate\Support\Str::startsWith($mainImage, ['http://', 'https://', '/'])) $mainImage = asset('furni/images/'.$mainImage);
+    $defaultVariant = $product->variants->first(fn ($variant) => $variant->stock_quantity === null || $variant->stock_quantity > 0) ?: $product->variants->first();
+    $defaultPrice = $defaultVariant ? ($defaultVariant->sale_price ?: $defaultVariant->price) : null;
+    $roundedRating = $product->rating ? max(0, min(5, (int) round((float) $product->rating))) : 0;
+@endphp
+<main class="site-container product-detail-page">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="{{ route('index') }}">Home</a><span>›</span><a href="{{ route('shop') }}">Shop</a><span>›</span>
+        <a href="{{ route('shop', ['category' => $product->category_id]) }}">{{ $product->category_name }}</a><span>›</span><strong>{{ $product->name }}</strong>
+    </nav>
+
+    <section class="product-detail">
+        <div class="product-gallery">
+            <div class="product-gallery-main"><img src="{{ $mainImage }}" alt="{{ $product->name }}" data-product-main-image></div>
+            @if($images->count() > 1)
+                <div class="product-gallery-thumbnails" aria-label="Product images">
+                    @foreach($images as $image)
+                        @php
+                            $thumbnail = $image->image_url ?: $fallbackImage;
+                            if (!\Illuminate\Support\Str::startsWith($thumbnail, ['http://', 'https://', '/'])) $thumbnail = asset('furni/images/'.$thumbnail);
+                        @endphp
+                        <button class="{{ $loop->first ? 'is-selected' : '' }}" type="button" data-product-thumbnail="{{ $thumbnail }}" aria-label="View product image {{ $loop->iteration }}" aria-pressed="{{ $loop->first ? 'true' : 'false' }}"><img src="{{ $thumbnail }}" alt="" loading="lazy"></button>
+                    @endforeach
+                </div>
+            @endif
+        </div>
+
+        <div class="product-detail-copy">
+            <div class="product-detail-meta">
+                <a href="{{ route('shop', ['category' => $product->category_id]) }}">{{ $product->category_name }}</a>
+                @if($product->brand_name)<span>·</span><span>{{ $product->brand_name }}</span>@endif
+            </div>
+            <h1>{{ $product->name }}</h1>
+            <div class="product-detail-rating">
+                <span aria-label="{{ $product->rating ? number_format((float) $product->rating, 1).' out of 5 stars' : 'No ratings yet' }}">{{ str_repeat('★', $roundedRating).str_repeat('☆', 5 - $roundedRating) }}</span>
+                <span>{{ $product->rating ? number_format((float) $product->rating, 1) : 'New' }}</span>
+                <a href="#product-reviews">{{ $product->review_count }} {{ \Illuminate\Support\Str::plural('review', $product->review_count) }}</a>
+            </div>
+            <p class="product-detail-description">{{ $product->description ?: 'Discover more about this product and choose the option that works for you.' }}</p>
+
+            @if($product->variants->isNotEmpty())
+                <form class="product-purchase" method="post" action="{{ route('cart.add') }}" data-product-purchase>
+                    @csrf
+                    <fieldset class="variant-choices">
+                        <legend>Choose an option</legend>
+                        <div class="variant-choice-list">
+                            @foreach($product->variants as $variant)
+                                @php
+                                    $variantOptions = $variant->options->map(fn ($option) => $option->option_name.': '.$option->option_value)->implode(' · ');
+                                    $variantLabel = $variantOptions ?: ($variant->sku ?: 'Standard');
+                                    $variantPrice = $variant->sale_price ?: $variant->price;
+                                    $variantInStock = $variant->stock_quantity === null || $variant->stock_quantity > 0;
+                                    $isDefaultVariant = $defaultVariant && $variant->id == $defaultVariant->id;
+                                @endphp
+                                <label class="variant-choice {{ !$variantInStock ? 'is-unavailable' : '' }}">
+                                    <input type="radio" name="variant_id" value="{{ $variant->id }}"
+                                        data-price="{{ $variantPrice !== null ? number_format((float) $variantPrice, 2, '.', '') : '' }}"
+                                        data-stock="{{ $variant->stock_quantity ?? '' }}"
+                                        data-stock-label="{{ $variantInStock ? ($variant->stock_quantity === null ? 'In stock' : $variant->stock_quantity.' in stock') : 'Out of stock' }}"
+                                        {{ $isDefaultVariant ? 'checked' : '' }} {{ !$variantInStock ? 'disabled' : '' }} required>
+                                    <span>{{ $variantLabel }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </fieldset>
+                    <div class="product-detail-price">
+                        <div class="product-detail-price-copy">
+                            <small>Item total</small>
+                            <strong data-product-price>{{ $defaultPrice !== null ? 'Rs. '.number_format((float) $defaultPrice, 2) : 'Ask for price' }}</strong>
+                            <small data-product-unit-price>{{ $defaultPrice !== null ? 'Rs. '.number_format((float) $defaultPrice, 2).' each' : '' }}</small>
+                        </div>
+                        <span class="{{ $defaultVariant && $defaultVariant->stock_quantity === 0 ? 'is-out-of-stock' : '' }}" data-product-stock>
+                            {{ !$defaultVariant ? 'Currently unavailable' : ($defaultVariant->stock_quantity === null ? 'In stock' : ($defaultVariant->stock_quantity > 0 ? $defaultVariant->stock_quantity.' in stock' : 'Out of stock')) }}
+                        </span>
+                    </div>
+                    <div class="product-buy-controls">
+                        <label for="product-quantity">Quantity</label>
+                        <input id="product-quantity" type="number" name="quantity" value="1" min="1" max="99" inputmode="numeric">
+                        @auth
+                            <button class="button-primary product-add-button" type="submit" {{ !$product->variants->contains(fn ($variant) => $variant->stock_quantity === null || $variant->stock_quantity > 0) ? 'disabled' : '' }}>Add to cart</button>
+                        @else
+                            <a class="button-primary product-add-button" href="{{ route('login') }}">Sign in to buy</a>
+                        @endauth
+                    </div>
+                </form>
+            @else
+                <div class="product-unavailable">This product is currently unavailable.</div>
+            @endif
+
+            <div class="product-service-points"><span>✓ Secure checkout</span><span>✓ Free shipping available</span><span>✓ Customer support</span></div>
+            @if($product->sku)<p class="product-sku">SKU: {{ $product->sku }}</p>@endif
+        </div>
+    </section>
+
+    @if($product->attributes->isNotEmpty())
+        <section class="product-information">
+            <div class="section-heading"><div><span class="section-kicker">PRODUCT INFORMATION</span><h2>Details &amp; specifications</h2></div></div>
+            <dl class="product-specifications">
+                @foreach($product->attributes as $attribute)
+                    <div><dt>{{ $attribute->name }}</dt><dd>{{ $attribute->value }}</dd></div>
+                @endforeach
+            </dl>
+        </section>
+    @endif
+
+    <section class="product-information product-reviews" id="product-reviews">
+        <div class="section-heading"><div><span class="section-kicker">CUSTOMER FEEDBACK</span><h2>Reviews</h2></div></div>
+        @auth
+            <form class="product-review-form" method="post" action="{{ route('products.reviews.store', $product->slug ?: $product->id) }}">
+                @csrf
+                <h3>{{ $userReview ? 'Update your review' : 'Write a review' }}</h3>
+                <fieldset class="review-rating-fieldset">
+                    <legend>Your rating</legend>
+                    <div class="review-rating-input">
+                        @for($rating = 5; $rating >= 1; $rating--)
+                            <input id="review-rating-{{ $rating }}" type="radio" name="rating" value="{{ $rating }}" {{ (string) old('rating', $userReview->rating ?? '') === (string) $rating ? 'checked' : '' }} required>
+                            <label for="review-rating-{{ $rating }}" aria-label="{{ $rating }} {{ \Illuminate\Support\Str::plural('star', $rating) }}">★</label>
+                        @endfor
+                    </div>
+                    @error('rating')<p class="review-field-error">{{ $message }}</p>@enderror
+                </fieldset>
+                <label class="review-comment-label" for="review-comment">Your comment</label>
+                <textarea id="review-comment" name="comment" rows="4" maxlength="2000" required placeholder="What did you think about this product?">{{ old('comment', $userReview->comment ?? '') }}</textarea>
+                @error('comment')<p class="review-field-error">{{ $message }}</p>@enderror
+                <button class="button-primary" type="submit">{{ $userReview ? 'Update review' : 'Post review' }}</button>
+            </form>
+        @else
+            <p class="review-sign-in"><a href="{{ route('login') }}">Sign in</a> to rate and review this product.</p>
+        @endauth
+        @forelse($product->reviews as $review)
+            @php $reviewRating = max(0, min(5, (int) $review->rating)); @endphp
+            <article class="product-review">
+                <div><strong>{{ $review->reviewer_name ?: 'Marketly customer' }}</strong><span aria-label="{{ $reviewRating }} out of 5 stars">{{ str_repeat('★', $reviewRating).str_repeat('☆', 5 - $reviewRating) }}</span></div>
+                @if($review->comment)<p>{{ $review->comment }}</p>@endif
+            </article>
+        @empty
+            <p class="product-no-reviews">There are no reviews for this product yet.</p>
+        @endforelse
+    </section>
+</main>
+@endsection
+
+@push('scripts')
+<script>
+(() => {
+    const mainImage = document.querySelector('[data-product-main-image]');
+    document.querySelectorAll('[data-product-thumbnail]').forEach((button) => {
+        button.addEventListener('click', () => {
+            mainImage.src = button.dataset.productThumbnail;
+            document.querySelectorAll('[data-product-thumbnail]').forEach((thumbnail) => {
+                thumbnail.classList.toggle('is-selected', thumbnail === button);
+                thumbnail.setAttribute('aria-pressed', thumbnail === button ? 'true' : 'false');
+            });
+        });
+    });
+
+    const purchase = document.querySelector('[data-product-purchase]');
+    if (!purchase) return;
+    const price = purchase.querySelector('[data-product-price]');
+    const unitPrice = purchase.querySelector('[data-product-unit-price]');
+    const stock = purchase.querySelector('[data-product-stock]');
+    const quantity = purchase.querySelector('[name="quantity"]');
+    const formatPrice = (amount) => `Rs. ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const updatePrice = () => {
+        const selected = purchase.querySelector('[name="variant_id"]:checked');
+        const amount = selected ? selected.dataset.price : '';
+        const count = Number(quantity.value);
+        const safeCount = Number.isFinite(count) && count > 0 ? count : 1;
+        price.textContent = amount ? formatPrice(Number(amount) * safeCount) : 'Ask for price';
+        unitPrice.textContent = amount ? `${formatPrice(Number(amount))} each` : '';
+    };
+    purchase.querySelectorAll('[name="variant_id"]').forEach((input) => {
+        input.addEventListener('change', () => {
+            stock.textContent = input.dataset.stockLabel;
+            stock.classList.toggle('is-out-of-stock', input.dataset.stock !== '' && Number(input.dataset.stock) < 1);
+            quantity.max = input.dataset.stock && Number(input.dataset.stock) > 0 ? Math.min(99, Number(input.dataset.stock)) : 99;
+            if (Number(quantity.value) > Number(quantity.max)) quantity.value = quantity.max;
+            updatePrice();
+        });
+    });
+    quantity.addEventListener('input', updatePrice);
+    const selectedVariant = purchase.querySelector('[name="variant_id"]:checked');
+    if (selectedVariant) selectedVariant.dispatchEvent(new Event('change'));
+})();
+</script>
+@endpush

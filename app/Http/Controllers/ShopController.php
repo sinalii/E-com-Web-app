@@ -177,6 +177,66 @@ class ShopController extends Controller
         ]);
     }
 
+    public function show(string $product)
+    {
+        [$categories, $categoryTree] = $this->categoryTree();
+        $query = DB::table('product')
+            ->join('category', 'category.id', '=', 'product.category_id')
+            ->leftJoin('brand', 'brand.id', '=', 'product.brand_id')
+            ->where('product.is_active', true)
+            ->whereNull('product.deleted_at')
+            ->where('category.is_active', true);
+
+        if (ctype_digit($product)) {
+            $query->where('product.id', (int) $product);
+        } else {
+            $query->where('product.slug', $product);
+        }
+
+        $item = $query->select(
+            'product.id', 'product.name', 'product.description', 'product.slug', 'product.sku',
+            'category.id as category_id', 'category.name as category_name',
+            'brand.name as brand_name'
+        )->firstOrFail();
+
+        $item->images = DB::table('product_image')->where('product_id', $item->id)
+            ->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id')->get();
+        $item->variants = DB::table('product_variant')->where('product_id', $item->id)
+            ->where('is_active', true)->orderBy('id')->get();
+
+        $variantIds = $item->variants->pluck('id');
+        $optionsByVariant = DB::table('product_variant_option')->whereIn('product_variant_id', $variantIds)
+            ->orderBy('id')->get()->groupBy('product_variant_id');
+        foreach ($item->variants as $variant) {
+            $variant->options = $optionsByVariant->get($variant->id, collect());
+        }
+
+        $item->attributes = DB::table('product_attribute')->where('product_id', $item->id)
+            ->where(function ($query) {
+                $query->whereNull('is_variant')->orWhere('is_variant', false);
+            })->whereNotNull('value')->where('value', '<>', '')
+            ->orderBy('name')->get();
+        $item->reviews = DB::table('review')->leftJoin('user', 'user.id', '=', 'review.user_id')
+            ->where('review.product_id', $item->id)->whereNotNull('review.rating')
+            ->orderByDesc('review.created_at')
+            ->select('review.rating', 'review.comment', 'review.created_at', 'user.name as reviewer_name')
+            ->limit(8)->get();
+        $item->rating = DB::table('review')->where('product_id', $item->id)->whereNotNull('rating')->avg('rating');
+        $item->review_count = DB::table('review')->where('product_id', $item->id)->whereNotNull('rating')->count();
+        $userReview = Auth::check()
+            ? DB::table('review')->where('product_id', $item->id)->where('user_id', Auth::id())->first()
+            : null;
+
+        return view('pages.product', [
+            'categories' => $categories,
+            'categoryTree' => $categoryTree,
+            'product' => $item,
+            'userReview' => $userReview,
+            'cartCount' => $this->cartCount(),
+            'wishlistIds' => $this->wishlistIds(),
+        ]);
+    }
+
     public function page(string $page)
     {
         [$categories] = $this->categoryTree();
