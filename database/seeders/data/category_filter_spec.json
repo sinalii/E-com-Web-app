@@ -1,0 +1,1093 @@
+{
+    "common_filters":  [
+                           {
+                               "name":  "Price",
+                               "options":  "Minimum price, maximum price, price range"
+                           },
+                           {
+                               "name":  "Sort",
+                               "options":  "Best match, orders/best-selling, newest, price low-to-high, price high-to-low"
+                           },
+                           {
+                               "name":  "Customer feedback",
+                               "options":  "4 stars \u0026 up / minimum rating, where offered"
+                           },
+                           {
+                               "name":  "Shipping",
+                               "options":  "Free shipping, ships from country/region, delivery time or local warehouse where offered"
+                           },
+                           {
+                               "name":  "Promotions",
+                               "options":  "Choice, sale/deal, coupons or discount filters where offered"
+                           },
+                           {
+                               "name":  "Availability",
+                               "options":  "In stock / availability, where the storefront supports it"
+                           },
+                           {
+                               "name":  "Product attributes",
+                               "options":  "Category-specific facets such as brand, colour, size, material, model, capacity or compatibility"
+                           }
+                       ],
+    "categories":  [
+                       {
+                           "name":  "Women\u0027s Clothing",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Dresses (casual, evening, maxi, mini, party)",
+                                                     "filters":  "Brand, size, colour, style/occasion, dress length, silhouette, neckline, sleeve length, material, pattern, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Tops (T-shirts, blouses, crop tops, tank tops, shirts)",
+                                                     "filters":  "Brand, size, colour, material, pattern, sleeve length, neckline, fit, style, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Bottoms (jeans, trousers, leggings, shorts, skirts)",
+                                                     "filters":  "Brand, size, colour, material, waist type, fit, length, rise, pattern, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Outerwear (coats, jackets, blazers, cardigans)",
+                                                     "filters":  "Brand, size, colour, material, length, closure, thickness/warmth, style, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Sets, jumpsuits \u0026 rompers",
+                                                     "filters":  "Brand, size, colour, material, number of pieces, sleeve length, trouser length, style, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Sweaters \u0026 hoodies",
+                                                     "filters":  "Brand, size, colour, material, thickness, fit, neckline, sleeve length, pattern, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Swimwear",
+                                                     "filters":  "Brand, size, colour, style, coverage, pattern, material, number of pieces, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Activewear",
+                                                     "filters":  "Brand, size, colour, sport/activity, material, fit, waist type, support level, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Lingerie \u0026 sleepwear",
+                                                     "filters":  "Brand, size, colour, material, cup size (bras), style, padding, support, set type, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Plus-size \u0026 maternity clothing",
+                                                     "filters":  "Brand, size, colour, material, style, fit, season, maternity stage (where relevant), price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Shoes",
+                                                     "filters":  "Brand, shoe size, colour, material, heel height, heel type, toe shape, closure, style, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Bags",
+                                                     "filters":  "Brand, colour, material, bag type, size/capacity, closure, strap type, pattern, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Fashion accessories",
+                                                     "filters":  "Brand, type, colour, material, style, pattern, size, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Jewellery",
+                                                     "filters":  "Brand, jewellery type, metal/material, colour, gemstone, plating, style, occasion, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Men\u0027s Clothing",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "T-shirts, polo shirts \u0026 tops",
+                                                     "filters":  "Brand, size, colour, material, pattern, sleeve length, neckline, fit, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Shirts",
+                                                     "filters":  "Brand, size, colour, material, pattern, collar type, sleeve length, fit, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Jeans \u0026 trousers",
+                                                     "filters":  "Brand, waist size, length, colour, fit, rise, material, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Shorts",
+                                                     "filters":  "Brand, size, colour, material, length, fit, style, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hoodies, sweatshirts \u0026 sweaters",
+                                                     "filters":  "Brand, size, colour, material, thickness, fit, neckline, pattern, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Jackets \u0026 coats",
+                                                     "filters":  "Brand, size, colour, material, style, length, closure, warmth, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Suits \u0026 blazers",
+                                                     "filters":  "Brand, size, colour, material, fit, number of pieces, pattern, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Tracksuits \u0026 sportswear",
+                                                     "filters":  "Brand, size, colour, sport, material, fit, set type, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Underwear, socks \u0026 sleepwear",
+                                                     "filters":  "Brand, size, colour, material, style, pack quantity, pattern, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Shoes",
+                                                     "filters":  "Brand, shoe size, colour, material, shoe type, closure, sole material, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Bags \u0026 accessories",
+                                                     "filters":  "Brand, type, colour, material, capacity, style, closure, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Phones \u0026 Telecommunications",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Mobile phones",
+                                                     "filters":  "Brand, model, colour, screen/display size, screen resolution, RAM, storage capacity, processor, operating system, battery capacity, camera resolution, network/5G, SIM type, condition, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Feature phones",
+                                                     "filters":  "Brand, colour, screen size, SIM count, battery capacity, connectivity, keypad type, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Refurbished/used phones",
+                                                     "filters":  "Brand, model, condition/grade, colour, storage, RAM, battery health (if provided), network compatibility, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Walkie-talkies",
+                                                     "filters":  "Brand, frequency band, channel count, range, power, battery capacity, waterproof rating, quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Mobile phone parts",
+                                                     "filters":  "Part type, compatible brand, compatible model, colour, material, original/compatible, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Telecommunications equipment",
+                                                     "filters":  "Equipment type, brand, connectivity, frequency, interface, compatibility, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Phone Accessories",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Cases \u0026 covers",
+                                                     "filters":  "Compatible brand, compatible model, colour, material, case type, features (shockproof/magnetic), pattern, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Screen \u0026 camera protectors",
+                                                     "filters":  "Compatible brand/model, protector type, material, hardness, finish, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Chargers \u0026 cables",
+                                                     "filters":  "Brand, connector type, output power, charging protocol, cable length, compatibility, colour, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Power banks",
+                                                     "filters":  "Brand, capacity (mAh), output power, ports, charging protocol, size, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Holders, stands \u0026 grips",
+                                                     "filters":  "Type, compatible device, mounting type, material, colour, adjustable angle, use (car/desk), price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Phone photography accessories",
+                                                     "filters":  "Accessory type, compatibility, lens type, magnification, connection/mount, material, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Phone parts",
+                                                     "filters":  "Part type, compatible brand/model, part number, condition, colour, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Computer \u0026 Office",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Laptops",
+                                                     "filters":  "Brand, model, screen size, processor/CPU, RAM, storage, graphics/GPU, operating system, resolution, refresh rate, weight, condition, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Desktop PCs \u0026 mini PCs",
+                                                     "filters":  "Brand, processor, RAM, storage, graphics, form factor, operating system, connectivity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Computer components",
+                                                     "filters":  "Component type, brand, model, socket/chipset, capacity, speed, interface, compatibility, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Monitors \u0026 displays",
+                                                     "filters":  "Brand, screen size, resolution, panel type, refresh rate, response time, aspect ratio, ports, curved/flat, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Keyboards \u0026 mice",
+                                                     "filters":  "Brand, connection, layout/language, switch type, keyboard size, DPI, ergonomic type, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Storage devices",
+                                                     "filters":  "Brand, device type, capacity, interface, read/write speed, form factor, compatibility, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Networking",
+                                                     "filters":  "Brand, device type, Wi-Fi standard, speed, bands, ports, coverage, connectivity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Printers \u0026 scanners",
+                                                     "filters":  "Brand, printer type, colour/monochrome, print technology, connectivity, paper size, multifunction, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Laptop accessories \u0026 parts",
+                                                     "filters":  "Accessory/part type, compatible brand/model, material, colour, size, connector, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Office supplies \u0026 equipment",
+                                                     "filters":  "Product type, brand, material, size, colour, pack quantity, compatible paper/format, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Consumer Electronics",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Headphones \u0026 earphones",
+                                                     "filters":  "Brand, type (over-ear/in-ear), connectivity, Bluetooth version, noise cancellation, microphone, battery life, waterproof rating, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Speakers \u0026 audio",
+                                                     "filters":  "Brand, speaker type, output power, channels, connectivity, Bluetooth, battery, waterproof rating, size, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Microphones \u0026 audio equipment",
+                                                     "filters":  "Brand, microphone type, polar pattern, connection, frequency response, use, included accessories, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Cameras \u0026 photography",
+                                                     "filters":  "Brand, camera type, resolution, sensor size, lens mount, optical zoom, video resolution, connectivity, condition, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "CCTV \u0026 surveillance cameras",
+                                                     "filters":  "Brand, camera type, resolution, lens, night vision, connectivity, storage, weatherproof rating, power, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Projectors \u0026 video equipment",
+                                                     "filters":  "Brand, resolution, brightness, projection technology, throw ratio, connectivity, operating system, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Gaming devices \u0026 accessories",
+                                                     "filters":  "Brand, platform compatibility, device type, connection, colour, storage, features, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Smart devices \u0026 wearables",
+                                                     "filters":  "Brand, device type, compatibility, display size, connectivity, battery life, sensors, waterproof rating, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Drones",
+                                                     "filters":  "Brand, type, camera resolution, flight time, control range, GPS, obstacle avoidance, foldable, battery count, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Jewelry \u0026 Accessories",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Fashion jewellery",
+                                                     "filters":  "Jewellery type, brand, material, colour, plating, gemstone, style, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Fine jewellery",
+                                                     "filters":  "Metal type, purity, gemstone, carat/weight, setting, ring size, certification (if provided), price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Jewellery making supplies",
+                                                     "filters":  "Supply type, material, colour, size, shape, hole size, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Jewellery packaging \u0026 display",
+                                                     "filters":  "Product type, material, colour, dimensions, capacity, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Jewellery tools",
+                                                     "filters":  "Tool type, material, use, dimensions, power/manual, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Watches",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Men\u0027s watches",
+                                                     "filters":  "Brand, movement (quartz/mechanical), display (analog/digital), strap material, case material, case diameter, water resistance, features, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Women\u0027s watches",
+                                                     "filters":  "Brand, movement, display, strap material, case diameter, case material, water resistance, style, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Smart watches",
+                                                     "filters":  "Brand, compatibility, operating system, display size, connectivity, battery life, health sensors, GPS, water resistance, strap size, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Children\u0027s watches",
+                                                     "filters":  "Brand, age range, display type, GPS/SIM features, strap material, water resistance, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Watch accessories",
+                                                     "filters":  "Accessory type, compatible watch/brand, strap width, material, colour, connector type, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Home \u0026 Garden",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Home decor",
+                                                     "filters":  "Product type, style, material, colour, theme, dimensions, room, installation type, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Home textiles",
+                                                     "filters":  "Textile type, material, size, colour, pattern, thread count (where relevant), set composition, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Kitchen \u0026 dining",
+                                                     "filters":  "Product type, material, colour, capacity, dimensions, number of pieces, compatible appliance, dishwasher/microwave safe, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Home storage \u0026 organisation",
+                                                     "filters":  "Storage type, material, dimensions, capacity, colour, mounting type, number of compartments, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Bathroom",
+                                                     "filters":  "Product type, material, colour, dimensions, mounting type, set quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Garden supplies",
+                                                     "filters":  "Product type, material, size, plant compatibility, power/manual, outdoor suitability, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Cleaning supplies",
+                                                     "filters":  "Product type, material, dimensions, use/surface, reusable/disposable, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Pet products",
+                                                     "filters":  "Pet type, product type, breed/size compatibility, material, dimensions, colour, age range, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Arts, crafts \u0026 sewing",
+                                                     "filters":  "Craft type, material, colour, size, tool type, skill level, pack quantity, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Home Appliances",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Kitchen appliances",
+                                                     "filters":  "Brand, appliance type, capacity, power/wattage, voltage, functions, dimensions, colour, energy rating, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Cleaning appliances",
+                                                     "filters":  "Brand, appliance type, suction power, capacity, runtime, filtration, corded/cordless, battery, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Climate appliances",
+                                                     "filters":  "Brand, appliance type, room coverage, capacity, power, noise level, modes, dimensions, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Laundry appliances",
+                                                     "filters":  "Brand, appliance type, capacity, power, programmes, dimensions, energy rating, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Personal care appliances",
+                                                     "filters":  "Brand, appliance type, power, heat settings, speed/settings, power source, attachments, voltage, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Appliance parts",
+                                                     "filters":  "Part type, compatible brand/model, part number, material, dimensions, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Luggage \u0026 Bags",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Women\u0027s handbags",
+                                                     "filters":  "Brand, bag type, colour, material, size, closure, strap type, compartments, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Men\u0027s bags",
+                                                     "filters":  "Brand, bag type, colour, material, capacity, laptop size, closure, strap type, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Backpacks \u0026 school bags",
+                                                     "filters":  "Brand, capacity, size, material, colour, laptop compartment, age/use, waterproofing, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Travel bags \u0026 suitcases",
+                                                     "filters":  "Brand, luggage type, size, capacity, material, wheel type, lock type, expandable, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Wallets \u0026 holders",
+                                                     "filters":  "Brand, material, colour, dimensions, card capacity, closure, RFID protection, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Cosmetic \u0026 organiser bags",
+                                                     "filters":  "Type, material, dimensions, compartments, colour, closure, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Bag parts \u0026 accessories",
+                                                     "filters":  "Accessory type, compatible bag, material, colour, dimensions, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Shoes",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Women\u0027s shoes",
+                                                     "filters":  "Brand, shoe size, colour, material, shoe type, heel height, heel type, toe shape, closure, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Men\u0027s shoes",
+                                                     "filters":  "Brand, shoe size, colour, material, shoe type, sole material, closure, occasion, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Sneakers",
+                                                     "filters":  "Brand, size, colour, upper material, sole material, sport/lifestyle, closure, cushioning, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Boots",
+                                                     "filters":  "Brand, size, colour, material, boot height, heel height, closure, toe shape, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Sandals \u0026 slippers",
+                                                     "filters":  "Brand, size, colour, material, sole type, style, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Shoe accessories",
+                                                     "filters":  "Accessory type, shoe compatibility, size, material, colour, pack quantity, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Mother \u0026 Kids",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Baby clothing",
+                                                     "filters":  "Brand, size/age, colour, material, season, sleeve length, closure, gender/fit, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Children\u0027s clothing",
+                                                     "filters":  "Brand, size/age, colour, material, pattern, sleeve length, style, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Baby strollers \u0026 accessories",
+                                                     "filters":  "Brand, stroller type, age/weight suitability, fold type, wheel type, weight, safety standard, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Baby feeding",
+                                                     "filters":  "Brand, product type, material, capacity, age suitability, sterilisation compatibility, BPA-free claim, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Baby safety \u0026 gear",
+                                                     "filters":  "Product type, age/weight range, material, installation type, safety standard, dimensions, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Diapering \u0026 toilet training",
+                                                     "filters":  "Product type, size, age/weight range, material, absorbency, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Car seats",
+                                                     "filters":  "Brand, group/age, child weight/height, installation type, direction, safety standard, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Baby care \u0026 appliances",
+                                                     "filters":  "Brand, product type, power source, capacity, material, age suitability, functions, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Baby furniture \u0026 bedding",
+                                                     "filters":  "Product type, material, dimensions, age suitability, colour, mattress size, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Kids\u0027 shoes \u0026 accessories",
+                                                     "filters":  "Brand, size/age, colour, material, shoe type/accessory type, closure, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Maternity clothing \u0026 accessories",
+                                                     "filters":  "Brand, size, colour, material, garment type, support/function, pregnancy/postpartum use, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Toys \u0026 Hobbies",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Building \u0026 construction toys",
+                                                     "filters":  "Brand, toy type, age range, piece count, material, theme, compatibility, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Dolls \u0026 accessories",
+                                                     "filters":  "Brand, doll type, height, material, age range, included accessories, theme, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Action figures \u0026 collectibles",
+                                                     "filters":  "Brand, character/theme, scale/height, material, series, articulation, age range, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Plush \u0026 stuffed toys",
+                                                     "filters":  "Character/type, height/size, material, filling, age range, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Remote control toys",
+                                                     "filters":  "Brand, vehicle/type, control method, frequency, battery, speed, range, age range, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Puzzles \u0026 board games",
+                                                     "filters":  "Brand, game type, piece count, players, age range, material, language, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Educational \u0026 pretend play",
+                                                     "filters":  "Learning area, toy type, age range, material, language, power source, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Outdoor \u0026 water toys",
+                                                     "filters":  "Toy type, age range, material, dimensions, capacity, indoor/outdoor use, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hobby \u0026 model products",
+                                                     "filters":  "Hobby type, scale, material, skill level, model/series, included parts, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Sports \u0026 Outdoors",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Fitness \u0026 bodybuilding",
+                                                     "filters":  "Brand, equipment type, material, weight/resistance, dimensions, adjustability, intended activity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Yoga \u0026 Pilates",
+                                                     "filters":  "Product type, material, length, thickness, size, colour, non-slip feature, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Camping \u0026 hiking",
+                                                     "filters":  "Product type, capacity, season rating, material, weight, dimensions, waterproof rating, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Cycling",
+                                                     "filters":  "Product type, bike size, wheel size, frame material, compatibility, brand, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Water sports",
+                                                     "filters":  "Sport/type, size, material, buoyancy/pressure rating, age range, compatibility, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Team sports",
+                                                     "filters":  "Sport, equipment type, size, material, official size/weight, skill level, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Racquet sports",
+                                                     "filters":  "Sport, racquet type, weight, grip size, material, string tension, skill level, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Fishing",
+                                                     "filters":  "Product type, rod length, power/action, reel ratio, line capacity, material, lure type, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Sportswear \u0026 footwear",
+                                                     "filters":  "Brand, size, colour, sport, material, fit, gender, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Dance \u0026 skating",
+                                                     "filters":  "Product type, size, material, skill level, wheel/blade type, colour, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Automobiles \u0026 Motorcycles",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Car accessories",
+                                                     "filters":  "Vehicle make/model/year compatibility, accessory type, material, colour, dimensions, installation, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Car electronics",
+                                                     "filters":  "Brand, device type, vehicle compatibility, screen size, resolution, connectivity, power, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Car parts",
+                                                     "filters":  "Part type, vehicle make/model/year, OEM/part number, position, material, condition, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Car lighting",
+                                                     "filters":  "Light type, vehicle compatibility, bulb/socket type, voltage, colour temperature, brightness, waterproof rating, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Motorcycle parts",
+                                                     "filters":  "Part type, motorcycle make/model/year, position, material, OEM/part number, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Motorcycle accessories \u0026 riding gear",
+                                                     "filters":  "Product type, size, material, colour, compatibility, safety certification, season, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Car care \u0026 tools",
+                                                     "filters":  "Product/tool type, vehicle compatibility, use, power, material, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "RV, boat \u0026 other vehicle parts",
+                                                     "filters":  "Vehicle type, part type, make/model compatibility, material, dimensions, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Tools \u0026 Home Improvement",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Power tools",
+                                                     "filters":  "Brand, tool type, voltage, power, speed, battery platform, chuck/blade size, included accessories, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hand tools \u0026 tool sets",
+                                                     "filters":  "Brand, tool type, material, size, piece count, measurement standard, set contents, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Welding \u0026 soldering",
+                                                     "filters":  "Equipment type, brand, power, voltage, current range, material compatibility, accessories, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Measurement tools",
+                                                     "filters":  "Instrument type, measurement range, accuracy, resolution, laser/digital/manual, power source, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Electrical supplies",
+                                                     "filters":  "Product type, voltage, current, amperage, pole/way, material, dimensions, certification, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Plumbing",
+                                                     "filters":  "Product type, material, pipe/fitting size, connection type, finish, pressure rating, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hardware \u0026 fasteners",
+                                                     "filters":  "Product type, material, size, thread type, finish, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Building \u0026 renovation materials",
+                                                     "filters":  "Material type, dimensions, thickness, finish, colour, application, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Security \u0026 locks",
+                                                     "filters":  "Product type, lock type, access method, connectivity, material, dimensions, compatibility, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Ladders \u0026 workshop equipment",
+                                                     "filters":  "Equipment type, material, height/capacity, load rating, dimensions, power, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Lights \u0026 Lighting",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Indoor lighting",
+                                                     "filters":  "Light type, brand, bulb/base type, wattage, brightness/lumens, colour temperature, dimmable, material, finish, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Outdoor lighting",
+                                                     "filters":  "Light type, power source, wattage, brightness, IP rating, solar/battery/mains, motion sensor, colour temperature, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "LED strips \u0026 bulbs",
+                                                     "filters":  "LED type, length, wattage, voltage, colour temperature/RGB, brightness, waterproof rating, dimmable, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Smart lighting",
+                                                     "filters":  "Brand, smart-home compatibility, connectivity, voice assistant, colour options, brightness, wattage, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Commercial \u0026 professional lighting",
+                                                     "filters":  "Fixture type, wattage, lumen output, beam angle, colour temperature, voltage, IP rating, mounting type, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Lighting accessories",
+                                                     "filters":  "Accessory type, compatible fitting, voltage, material, dimensions, colour, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Furniture",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Living room furniture",
+                                                     "filters":  "Furniture type, material, colour, dimensions, seating capacity, style, upholstery, assembly, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Bedroom furniture",
+                                                     "filters":  "Furniture type, material, dimensions, bed/mattress size, storage, colour, style, assembly, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Dining furniture",
+                                                     "filters":  "Furniture type, material, dimensions, seating capacity, shape, finish, assembly, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Office furniture",
+                                                     "filters":  "Furniture type, material, dimensions, adjustability, ergonomic features, load capacity, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Outdoor furniture",
+                                                     "filters":  "Furniture type, material, dimensions, weather resistance, seating capacity, foldable, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Storage furniture",
+                                                     "filters":  "Storage type, material, dimensions, capacity, number of shelves/drawers, mounting, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Children\u0027s furniture",
+                                                     "filters":  "Furniture type, age suitability, material, dimensions, safety features, colour, assembly, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Furniture parts \u0026 accessories",
+                                                     "filters":  "Part type, compatible furniture, material, dimensions, finish, pack quantity, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Office \u0026 School Supplies",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Writing supplies",
+                                                     "filters":  "Brand, pen/pencil type, ink/lead type, colour, tip size, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Paper \u0026 notebooks",
+                                                     "filters":  "Brand, paper size, paper weight, ruling, sheet count, binding, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "School supplies",
+                                                     "filters":  "Product type, age/grade, material, size, colour, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Desk accessories \u0026 organisers",
+                                                     "filters":  "Product type, material, dimensions, compartments, colour, mounting, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Art \u0026 craft supplies",
+                                                     "filters":  "Medium/type, brand, material, colour, size, set contents, skill level, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Office equipment",
+                                                     "filters":  "Equipment type, brand, capacity, format/size, power, compatibility, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Filing, mailing \u0026 presentation",
+                                                     "filters":  "Product type, material, size, capacity, colour, pack quantity, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Beauty \u0026 Health",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Skincare",
+                                                     "filters":  "Brand, skin type, concern, product type, ingredients, formulation, volume, SPF (if applicable), country/region, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Makeup",
+                                                     "filters":  "Brand, product type, shade/colour, finish, coverage, skin type, formulation, volume, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hair care \u0026 styling",
+                                                     "filters":  "Brand, product type, hair type, concern, ingredients, formulation, volume, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hair styling tools",
+                                                     "filters":  "Brand, tool type, power, temperature settings, barrel/plate size, voltage, attachments, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Nail art \u0026 tools",
+                                                     "filters":  "Brand, product type, colour, finish, curing type, tool material, set contents, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Personal care \u0026 oral hygiene",
+                                                     "filters":  "Brand, product type, use, material, power source, size/capacity, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Beauty equipment \u0026 massage",
+                                                     "filters":  "Brand, device type, technology, power, modes, intensity, material, intended use, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Health care \u0026 rehabilitation supplies",
+                                                     "filters":  "Product type, intended use, size, material, measurement range, power source, certification (where provided), price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Fragrance \u0026 deodorants",
+                                                     "filters":  "Brand, fragrance type, scent family, volume, concentration, gender/market, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Hair Extensions \u0026 Wigs",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Human hair wigs",
+                                                     "filters":  "Hair type/origin (as stated), texture, length, colour, density, cap size, lace type, parting, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Synthetic wigs",
+                                                     "filters":  "Brand, fibre type, length, colour, texture, cap construction, heat resistance, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hair extensions",
+                                                     "filters":  "Hair type, application method, length, colour, texture, weight, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hair tools \u0026 accessories",
+                                                     "filters":  "Product type, compatible hair type, material, size, colour, heat resistance, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Salon supplies",
+                                                     "filters":  "Product type, professional/personal use, material, dimensions, power, set contents, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Toys, Kids \u0026 Baby overlap / Baby-specific",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Baby feeding \u0026 nursing",
+                                                     "filters":  "Brand, product type, material, capacity, age suitability, bottle/nipple flow, steriliser compatibility, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Strollers \u0026 carriers",
+                                                     "filters":  "Brand, type, age/weight suitability, fold mechanism, weight, wheel type, harness, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Car seats",
+                                                     "filters":  "Brand, child height/weight range, age group, installation method, orientation, safety standard, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Baby bedding \u0026 furniture",
+                                                     "filters":  "Product type, material, dimensions, mattress size, age suitability, colour, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Baby care \u0026 hygiene",
+                                                     "filters":  "Product type, brand, skin type, ingredients/material, age suitability, pack size, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Security \u0026 Protection",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Video surveillance",
+                                                     "filters":  "Camera type, brand, resolution, lens, night vision, connectivity, storage, IP rating, power, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Alarms \u0026 sensors",
+                                                     "filters":  "Device type, connectivity, detection type, range, power, compatibility, sound level, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Access control \u0026 smart locks",
+                                                     "filters":  "Lock/access type, unlocking method, connectivity, door compatibility, material, power, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Fire \u0026 emergency safety",
+                                                     "filters":  "Product type, rating/standard, capacity, detection type, material, dimensions, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Personal \u0026 workplace safety",
+                                                     "filters":  "Product type, size, material, protection rating, certification, intended use, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Safes \u0026 storage security",
+                                                     "filters":  "Safe type, capacity, dimensions, lock type, material, fire/water rating, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Industrial \u0026 Business",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Industrial machinery",
+                                                     "filters":  "Machine type, brand, capacity, power, voltage, output, dimensions, automation level, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Manufacturing \u0026 processing equipment",
+                                                     "filters":  "Process/type, material compatibility, capacity, power, precision, dimensions, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Packaging \u0026 printing machinery",
+                                                     "filters":  "Machine type, output speed, package/print size, material compatibility, power, automation, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Agricultural machinery",
+                                                     "filters":  "Machine type, power, capacity, working width, fuel/power source, dimensions, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Material handling \u0026 warehouse equipment",
+                                                     "filters":  "Equipment type, load capacity, lift height, dimensions, power/manual, material, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Industrial parts \u0026 automation",
+                                                     "filters":  "Part type, brand, model/part number, voltage, current, interface, compatibility, dimensions, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Measuring \u0026 laboratory instruments",
+                                                     "filters":  "Instrument type, measurement range, accuracy, resolution, calibration, interface, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Chemicals, metals \u0026 raw materials",
+                                                     "filters":  "Material/chemical type, grade, composition, form, dimensions, weight, packaging, compliance documentation, price"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Weddings \u0026 Events",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Wedding dresses",
+                                                     "filters":  "Brand, size, colour, silhouette, neckline, sleeve, length, fabric, train length, embellishment, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Bridesmaid \u0026 occasion dresses",
+                                                     "filters":  "Brand, size, colour, length, silhouette, neckline, sleeve, fabric, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Wedding accessories",
+                                                     "filters":  "Accessory type, colour, material, style, personalisation, set contents, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Party \u0026 event decorations",
+                                                     "filters":  "Event type, decoration type, theme, colour, material, dimensions, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Party supplies \u0026 gifts",
+                                                     "filters":  "Product type, theme, age/event, material, colour, pack quantity, personalisation, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Underwear \u0026 Hosiery",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Women\u0027s bras \u0026 intimates",
+                                                     "filters":  "Brand, band size, cup size, colour, material, style, padding, underwire, support, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Women\u0027s underwear",
+                                                     "filters":  "Brand, size, colour, material, style, rise, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Men\u0027s underwear",
+                                                     "filters":  "Brand, size, colour, material, style, fit, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Socks \u0026 hosiery",
+                                                     "filters":  "Brand, size, colour, material, length, thickness/denier, pattern, pack quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Sleep \u0026 lounge wear",
+                                                     "filters":  "Brand, size, colour, material, set type, sleeve length, season, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Apparel Accessories",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Belts",
+                                                     "filters":  "Brand, material, colour, length, width, buckle type, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Scarves \u0026 wraps",
+                                                     "filters":  "Brand, material, colour, size, pattern, season, style, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Hats \u0026 caps",
+                                                     "filters":  "Brand, size, material, colour, style, season, adjustability, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Gloves \u0026 mittens",
+                                                     "filters":  "Brand, size, material, colour, lining, use/season, touchscreen feature, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Eyewear \u0026 accessories",
+                                                     "filters":  "Brand, frame shape, frame material, lens material, UV protection, lens colour, face fit, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Ties, bow ties \u0026 accessories",
+                                                     "filters":  "Brand, material, colour, pattern, width, length, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Masks \u0026 protective apparel accessories",
+                                                     "filters":  "Type, material, size, filtration/fit claims, reusable/disposable, pack quantity, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Novelty \u0026 Special Use",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Cosplay costumes",
+                                                     "filters":  "Character/theme, size, colour, material, included pieces, gender/fit, occasion, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Workwear \u0026 uniforms",
+                                                     "filters":  "Industry/use, size, material, colour, safety class, fit, garment type, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Stage \u0026 dancewear",
+                                                     "filters":  "Dance/performance type, size, colour, material, style, embellishment, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Traditional \u0026 cultural apparel",
+                                                     "filters":  "Style/region, size, material, colour, garment type, occasion, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Books, Music \u0026 Collectibles",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Books",
+                                                     "filters":  "Genre/subject, language, format, author, publisher, edition, age range, condition, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Music \u0026 records",
+                                                     "filters":  "Artist, genre, format (vinyl/CD), release/edition, language, condition, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Collectibles",
+                                                     "filters":  "Category/theme, brand, series, material, edition, size/scale, condition, authenticity documentation, price, rating"
+                                                 }
+                                             ]
+                       },
+                       {
+                           "name":  "Food \u0026 Grocery (where legally available)",
+                           "subcategories":  [
+                                                 {
+                                                     "name":  "Packaged groceries",
+                                                     "filters":  "Brand, product type, flavour, dietary attribute, net weight, pack quantity, expiry/shelf-life information, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Tea \u0026 coffee",
+                                                     "filters":  "Brand, type, origin, roast/strength, flavour, grind/leaf form, pack weight, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Snacks \u0026 confectionery",
+                                                     "filters":  "Brand, flavour, dietary attributes, pack size, quantity, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Dried foods \u0026 nuts",
+                                                     "filters":  "Product type, origin, grade, form, weight, packaging, price, rating"
+                                                 },
+                                                 {
+                                                     "name":  "Beverages",
+                                                     "filters":  "Brand, beverage type, flavour, volume, pack quantity, price, rating"
+                                                 }
+                                             ]
+                       }
+                   ]
+}

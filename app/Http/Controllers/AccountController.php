@@ -17,7 +17,7 @@ class AccountController extends Controller
         return view('pages.account', [
             'user' => $user,
             'orders' => $orders,
-            'categories' => DB::table('category')->where('is_active', true)->orderBy('name')->get(),
+            'categories' => DB::table('category')->whereNull('parent_id')->where('is_active', true)->orderBy('name')->get(),
             'cartCount' => $cartCount,
         ]);
     }

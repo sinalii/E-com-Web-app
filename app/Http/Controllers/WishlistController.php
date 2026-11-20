@@ -31,7 +31,7 @@ class WishlistController extends Controller
             ->get();
 
         return view('pages.wishlist', [
-            'categories' => DB::table('category')->where('is_active', true)->orderBy('name')->get(),
+            'categories' => DB::table('category')->whereNull('parent_id')->where('is_active', true)->orderBy('name')->get(),
             'items' => $items,
             'wishlistIds' => $items->pluck('id')->map(fn ($id) => (int) $id)->all(),
             'cartCount' => (int) DB::table('cart_item')->join('cart', 'cart.id', '=', 'cart_item.cart_id')
