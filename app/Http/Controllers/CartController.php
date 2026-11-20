@@ -263,7 +263,7 @@ class CartController extends Controller
 
     private function categories()
     {
-        return DB::table('category')->where('is_active', true)->orderBy('name')->get();
+        return DB::table('category')->whereNull('parent_id')->where('is_active', true)->orderBy('name')->get();
     }
 
     private function cartCount(int $userId): int

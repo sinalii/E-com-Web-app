@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('product_variant', function (Blueprint $table) {
+            $table->bigInteger('id', true);
+            $table->bigInteger('product_id')->nullable()->index('fk_variant_product');
+            $table->string('sku', 100)->nullable()->unique('sku');
+            $table->decimal('price', 10)->nullable();
+            $table->decimal('sale_price', 10)->nullable();
+            $table->integer('stock_quantity')->nullable();
+            $table->boolean('is_active')->nullable()->default(true);
+            $table->timestamp('created_at')->nullable()->useCurrent();
+            $table->timestamp('updated_at')->useCurrentOnUpdate()->nullable()->useCurrent();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('product_variant');
+    }
+};
