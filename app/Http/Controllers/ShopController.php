@@ -284,9 +284,12 @@ class ShopController extends Controller
             ->leftJoin('product_variant', function ($join) {
                 $join->on('product_variant.product_id', '=', 'product.id')->where('product_variant.is_active', true);
             })
-            ->leftJoin('product_image', function ($join) {
-                $join->on('product_image.product_id', '=', 'product.id')->where('product_image.is_primary', true);
-            })
+            ->leftJoinSub(
+                DB::table('product_image')->select('product_id')
+                    ->selectRaw('COALESCE(MIN(CASE WHEN is_primary = 1 THEN id END), MIN(id)) as image_id')->groupBy('product_id'),
+                'selected_product_image', 'selected_product_image.product_id', '=', 'product.id'
+            )
+            ->leftJoin('product_image', 'product_image.id', '=', 'selected_product_image.image_id')
             ->leftJoinSub($reviews, 'review_stats', 'review_stats.product_id', '=', 'product.id')
             ->leftJoinSub($sales, 'sales_stats', 'sales_stats.product_id', '=', 'product.id')
             ->where('product.is_active', true)

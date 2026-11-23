@@ -8,9 +8,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class AdminController extends Controller
@@ -78,6 +80,8 @@ class AdminController extends Controller
     {
         abort_unless(array_key_exists($section, self::SECTIONS), 404);
         if ($section === 'reports') return $this->salesReportPage($request);
+        if ($section === 'orders') $request->validate(['search' => ['nullable','string','max:120'], 'status' => ['nullable',Rule::in(['pending','processing','shipped','delivered','completed','cancelled'])], 'date_from' => ['nullable','date'], 'date_to' => ['nullable','date','after_or_equal:date_from']]);
+        if ($section === 'payments') $request->validate(['search' => ['nullable','string','max:120'], 'status' => ['nullable',Rule::in(['pending','paid','failed','refunded'])], 'method' => ['nullable','string','max:100'], 'date_from' => ['nullable','date'], 'date_to' => ['nullable','date','after_or_equal:date_from']]);
 
         $records = $this->records($section, $request);
         $editing = null;
@@ -118,6 +122,13 @@ class AdminController extends Controller
             'stats' => [],
             'salesByMonth' => collect(),
             'recentOrders' => collect(),
+            'paymentMethods' => $section === 'payments' ? DB::table('payment')->whereNotNull('method')->distinct()->orderBy('method')->pluck('method') : collect(),
+            'admin' => $section === 'settings' ? $request->user() : null,
+            'storeSettings' => $section === 'settings' && Schema::hasTable('store_settings') ? DB::table('store_settings')->where('id', 1)->first() : null,
+            'supportsOtherSessions' => $section === 'settings' && config('session.driver') === 'database' && Schema::hasTable('sessions'),
+            'productImages' => $section === 'products' && $editing
+                ? DB::table('product_image')->where('product_id', $editing->id)->orderByDesc('is_primary')->orderBy('sort_order')->orderBy('id')->get()
+                : collect(),
         ]);
     }
 
@@ -414,13 +425,50 @@ class AdminController extends Controller
             'items' => DB::table('order_item')->leftJoin('product_variant', 'product_variant.id', '=', 'order_item.product_variant_id')
                 ->where('order_item.order_id', $id)->get(['order_item.*', 'product_variant.sku']),
             'shipping' => DB::table('shipping')->leftJoin('address', 'address.id', '=', 'shipping.address_id')
-                ->where('shipping.order_id', $id)->first(['shipping.*', 'address.contact_name', 'address.phone', 'address.address_line1', 'address.address_line2', 'address.city', 'address.postal_code', 'address.country']),
+                ->where('shipping.order_id', $id)->first(['shipping.*', 'address.contact_name', 'address.phone', 'address.address_line1', 'address.address_line2', 'address.city', 'address.state', 'address.postal_code', 'address.country']),
             'payments' => DB::table('order_payment')->leftJoin('payment', 'payment.id', '=', 'order_payment.payment_id')
                 ->where('order_payment.order_id', $id)->get(['order_payment.*', 'payment.method', 'payment.provider', 'payment.transaction_id']),
             'sections' => self::SECTIONS,
             'section' => 'orders',
             'adminCategoryTree' => $this->categorySidebarTree(),
         ]);
+    }
+
+    public function paymentDetails(int $id)
+    {
+        $payment = DB::table('order_payment')->leftJoin('payment', 'payment.id', '=', 'order_payment.payment_id')
+            ->leftJoin('order', 'order.id', '=', 'order_payment.order_id')
+            ->leftJoin('user', 'user.id', '=', 'order.user_id')->where('order_payment.id', $id)
+            ->first(['order_payment.*', 'payment.method', 'payment.provider', 'payment.transaction_id', 'payment.status as payment_status', 'order.status as order_status', 'order.total_amount', 'order.created_at as order_created_at', 'user.name as customer_name', 'user.email as customer_email']);
+        abort_unless($payment, 404);
+
+        return view('pages.admin-payment', [
+            'payment' => $payment,
+            'sections' => self::SECTIONS,
+            'section' => 'payments',
+            'adminCategoryTree' => $this->categorySidebarTree(),
+        ]);
+    }
+
+    public function confirmCodCollected(int $id)
+    {
+        DB::transaction(function () use ($id) {
+            $entry = DB::table('order_payment')->where('id', $id)->first();
+            abort_unless($entry, 404);
+            $order = DB::table('order')->where('id', $entry->order_id)->lockForUpdate()->first();
+            abort_unless($order && in_array($order->status, ['shipped', 'delivered', 'completed'], true), 409, 'COD can be confirmed after the order has shipped, once cash has actually been collected.');
+            $entry = DB::table('order_payment')->where('id', $id)->lockForUpdate()->first();
+            abort_unless($entry, 404);
+            $payment = DB::table('payment')->where('id', $entry->payment_id)->lockForUpdate()->first();
+            abort_unless($payment, 404);
+            abort_unless($payment->method === 'cash_on_delivery', 409, 'Only cash-on-delivery payments can be confirmed here.');
+            abort_unless($entry->status === 'pending' && $payment->status === 'pending', 409, 'This payment is no longer awaiting collection.');
+
+            DB::table('order_payment')->where('id', $id)->update(['status' => 'paid', 'paid_at' => now()]);
+            DB::table('payment')->where('id', $entry->payment_id)->update(['status' => 'paid']);
+        });
+
+        return back()->with('success', 'Cash-on-delivery collection confirmed.');
     }
 
     public function store(Request $request, string $section)
@@ -443,6 +491,7 @@ class AdminController extends Controller
     public function update(Request $request, string $section, int $id)
     {
         abort_unless(array_key_exists($section, self::SECTIONS), 404);
+        abort_if($section === 'payments', 405, 'Payment statuses are controlled by verified payment processing.');
         $data = $this->validatedData($request, $section, $id);
 
         match ($section) {
@@ -451,7 +500,6 @@ class AdminController extends Controller
             'brands' => DB::table('brand')->where('id', $id)->update($this->slugged($data, 'brand')),
             'customers' => $this->updateCustomer($id, $data),
             'orders' => $this->updateOrder($id, $data['status']),
-            'payments' => $this->updatePayment($id, $data['status']),
             'coupons' => DB::table('coupon')->where('id', $id)->update($data),
             'inventory' => DB::table('product_variant')->where('id', $id)->update(['stock_quantity' => $data['stock_quantity'], 'updated_at' => now()]),
             default => abort(405),
@@ -492,20 +540,122 @@ class AdminController extends Controller
     public function updateProfile(Request $request)
     {
         $admin = $request->user();
+        $oldProfilePath = $admin->profile;
         $request->merge(['email' => Str::lower(trim((string) $request->input('email')))]);
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email:rfc', 'max:255', Rule::unique('user', 'email')->ignore($admin->id)],
             'phone' => ['required', 'string', 'max:20', Rule::unique('user', 'phone')->ignore($admin->id)],
-            'password' => ['nullable', 'confirmed', 'min:8', 'regex:/[A-Za-z]/', 'regex:/[0-9]/'],
+            'profile_image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:2048'],
         ]);
-        $admin->name = $data['name'];
-        $admin->email = Str::lower($data['email']);
-        $admin->phone = $data['phone'];
-        if (! empty($data['password'])) $admin->password = Hash::make($data['password']);
-        $admin->save();
+        $newProfilePath = null;
+        if ($request->file('profile_image')) {
+            $newProfilePath = $request->file('profile_image')->storePublicly('admin-profiles', 'public');
+            abort_unless($newProfilePath, 500, 'The profile image could not be saved.');
+        }
+        try {
+            $admin->name = $data['name'];
+            $admin->email = $data['email'];
+            $admin->phone = $data['phone'];
+            if ($newProfilePath) $admin->profile = $newProfilePath;
+            $admin->save();
+        } catch (\Throwable $exception) {
+            if ($newProfilePath) Storage::disk('public')->delete($newProfilePath);
+            throw $exception;
+        }
+        if ($newProfilePath && $oldProfilePath && Str::startsWith($oldProfilePath, 'admin-profiles/')) {
+            Storage::disk('public')->delete($oldProfilePath);
+        }
 
-        return redirect()->route('admin.section', 'settings')->with('success', 'Profile settings updated.');
+        return redirect()->route('admin.section', 'settings')->with('success', 'Administrator profile updated.')->withFragment('profile');
+    }
+
+    public function updateStoreSettings(Request $request)
+    {
+        $data = $request->validate([
+            'store_name' => ['required','string','max:150'],
+            'email' => ['nullable','email:rfc','max:255'],
+            'phone' => ['nullable','string','max:30'],
+            'address' => ['nullable','string','max:2000'],
+            'currency' => ['required',Rule::in(['LKR','USD','EUR','GBP'])],
+            'store_logo' => ['nullable','image','mimes:jpg,jpeg,png,webp','max:3072'],
+        ]);
+        $existing = DB::table('store_settings')->where('id',1)->first();
+        $newLogoPath = $request->file('store_logo')?->storePublicly('store', 'public');
+        if ($request->file('store_logo') && ! $newLogoPath) abort(500, 'The store logo could not be saved.');
+        $values = [
+            'store_name' => trim($data['store_name']), 'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null, 'address' => $data['address'] ?? null,
+            'currency' => $data['currency'], 'logo_path' => $newLogoPath ?: ($existing->logo_path ?? null),
+            'updated_by' => $request->user()->id, 'updated_at' => now(),
+        ];
+        try {
+            DB::table('store_settings')->updateOrInsert(['id' => 1], $values + ['created_at' => $existing->created_at ?? now()]);
+        } catch (\Throwable $exception) {
+            if ($newLogoPath) Storage::disk('public')->delete($newLogoPath);
+            throw $exception;
+        }
+        if ($newLogoPath && $existing?->logo_path) Storage::disk('public')->delete($existing->logo_path);
+
+        return redirect()->route('admin.section','settings')->with('success','Store settings updated.')->withFragment('store-settings');
+    }
+
+    public function updatePassword(Request $request)
+    {
+        $admin = $request->user();
+        $data = $request->validate([
+            'current_password' => ['required','string'],
+            'password' => ['required','confirmed',Password::min(12)->mixedCase()->numbers()->symbols()],
+        ]);
+        if (! Hash::check($data['current_password'], $admin->password)) {
+            throw ValidationException::withMessages(['current_password' => 'The current password is incorrect.']);
+        }
+        $admin->password = Hash::make($data['password']);
+        $admin->save();
+        $this->deleteOtherDatabaseSessions($request);
+
+        $message = config('session.driver') === 'database' && Schema::hasTable('sessions')
+            ? 'Password changed. Other active database sessions have been signed out.'
+            : 'Password changed successfully.';
+        return redirect()->route('admin.section','settings')->with('success',$message)->withFragment('security');
+    }
+
+    public function logoutOtherSessions(Request $request)
+    {
+        abort_unless(config('session.driver') === 'database' && Schema::hasTable('sessions'), 404);
+        $this->deleteOtherDatabaseSessions($request);
+
+        return redirect()->route('admin.section','settings')->with('success','Other active sessions have been signed out.')->withFragment('security');
+    }
+
+    private function deleteOtherDatabaseSessions(Request $request): void
+    {
+        if (config('session.driver') !== 'database' || ! Schema::hasTable('sessions')) return;
+        DB::table(config('session.table', 'sessions'))->where('user_id', $request->user()->id)
+            ->where('id', '<>', $request->session()->getId())->delete();
+    }
+
+    public function updateNotificationPreferences(Request $request)
+    {
+        $data = $request->validate([
+            'notify_new_orders' => ['nullable','boolean'], 'notify_payments' => ['nullable','boolean'],
+            'notify_low_stock' => ['nullable','boolean'], 'notify_new_customers' => ['nullable','boolean'],
+        ]);
+        $existing = DB::table('store_settings')->where('id',1)->first();
+        $values = [
+            'store_name' => $existing->store_name ?? config('app.name','Marketly'),
+            'logo_path' => $existing->logo_path ?? null, 'email' => $existing->email ?? null,
+            'phone' => $existing->phone ?? null, 'address' => $existing->address ?? null,
+            'currency' => $existing->currency ?? 'LKR',
+            'notify_new_orders' => $request->boolean('notify_new_orders'),
+            'notify_payments' => $request->boolean('notify_payments'),
+            'notify_low_stock' => $request->boolean('notify_low_stock'),
+            'notify_new_customers' => $request->boolean('notify_new_customers'),
+            'updated_by' => $request->user()->id, 'updated_at' => now(),
+        ];
+        DB::table('store_settings')->updateOrInsert(['id' => 1], $values + ['created_at' => $existing->created_at ?? now()]);
+
+        return redirect()->route('admin.section','settings')->with('success','Notification preferences saved.')->withFragment('notifications');
     }
 
     private function records(string $section, ?Request $request = null)
@@ -515,14 +665,15 @@ class AdminController extends Controller
                 ->leftJoin('brand', 'brand.id', '=', 'product.brand_id')->leftJoinSub(
                     DB::table('product_variant')->select('product_id')->selectRaw('MIN(price) as starting_price, SUM(stock_quantity) as stock_total')->groupBy('product_id'),
                     'variant_totals', 'variant_totals.product_id', '=', 'product.id'
-                )->leftJoin('product_image', function ($join) { $join->on('product_image.product_id', '=', 'product.id')->where('product_image.is_primary', true); })
+                )->leftJoinSub($this->productImageSelection(), 'selected_product_image', 'selected_product_image.product_id', '=', 'product.id')
+                ->leftJoin('product_image', 'product_image.id', '=', 'selected_product_image.image_id')
                 ->whereNull('product.deleted_at')->orderBy('product.name')
                 ->get(['product.id', 'product.name', 'product.sku', 'product.status', 'product_image.image_url', 'category.name as category_name', 'brand.name as brand_name', 'variant_totals.starting_price', 'variant_totals.stock_total']),
             'categories' => $this->categoryRecords(),
             'brands' => DB::table('brand')->orderBy('name')->get(['id', 'name', 'slug', 'logo']),
             'customers' => $this->customerRecords($request ?? request()),
-            'orders' => DB::table('order')->leftJoin('user', 'user.id', '=', 'order.user_id')->whereNull('order.deleted_at')->orderByDesc('order.created_at')->paginate(25, ['order.id', 'order.user_id', 'order.status', 'order.total_amount', 'order.created_at', 'user.name as customer_name'])->withQueryString(),
-            'payments' => DB::table('order_payment')->leftJoin('payment', 'payment.id', '=', 'order_payment.payment_id')->leftJoin('order', 'order.id', '=', 'order_payment.order_id')->leftJoin('user', 'user.id', '=', 'order.user_id')->orderByDesc('order_payment.created_at')->paginate(25, ['order_payment.id', 'order_payment.order_id', 'order_payment.amount', 'order_payment.status', 'order_payment.paid_at', 'payment.method', 'payment.transaction_id', 'user.name as customer_name'])->withQueryString(),
+            'orders' => $this->orderRecords($request ?? request()),
+            'payments' => $this->paymentRecords($request ?? request()),
             'coupons' => DB::table('coupon')->orderByDesc('id')->get(['id', 'code', 'discount_type', 'discount_value', 'minimum_amount', 'start_date', 'end_date', 'is_active']),
             'inventory' => DB::table('product_variant')->join('product', 'product.id', '=', 'product_variant.product_id')->whereNull('product.deleted_at')->orderBy('product.name')->get(['product_variant.id', 'product.name', 'product_variant.sku', 'product_variant.price', 'product_variant.stock_quantity', 'product_variant.is_active']),
             'reviews' => DB::table('review')->leftJoin('product', 'product.id', '=', 'review.product_id')->leftJoin('user', 'user.id', '=', 'review.user_id')->orderByDesc('review.created_at')->paginate(25, ['review.id', 'review.rating', 'review.comment', 'review.created_at', 'product.name as product_name', 'user.name as customer_name'])->withQueryString(),
@@ -531,10 +682,51 @@ class AdminController extends Controller
         };
     }
 
+    private function orderRecords(Request $request)
+    {
+        $query = DB::table('order')->leftJoin('user', 'user.id', '=', 'order.user_id')->whereNull('order.deleted_at');
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') $query->where(function ($builder) use ($search) {
+            if (ctype_digit($search)) $builder->where('order.id', (int) $search)->orWhere('user.name', 'like', '%'.$search.'%')->orWhere('user.email', 'like', '%'.$search.'%');
+            else $builder->where('user.name', 'like', '%'.$search.'%')->orWhere('user.email', 'like', '%'.$search.'%');
+        });
+        if ($request->filled('status')) {
+            if ($request->query('status') === 'delivered') $query->whereIn('order.status', ['delivered', 'completed']);
+            else $query->where('order.status', $request->query('status'));
+        }
+        if ($request->filled('date_from')) $query->whereDate('order.created_at', '>=', $request->query('date_from'));
+        if ($request->filled('date_to')) $query->whereDate('order.created_at', '<=', $request->query('date_to'));
+
+        return $query->orderByDesc('order.created_at')->paginate(25, ['order.id', 'order.user_id', 'order.status', 'order.total_amount', 'order.created_at', 'user.name as customer_name'])->withQueryString();
+    }
+
+    private function paymentRecords(Request $request)
+    {
+        $query = DB::table('order_payment')->leftJoin('payment', 'payment.id', '=', 'order_payment.payment_id')
+            ->leftJoin('order', 'order.id', '=', 'order_payment.order_id')->leftJoin('user', 'user.id', '=', 'order.user_id');
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') $query->where(function ($builder) use ($search) {
+            if (ctype_digit($search)) $builder->where('order_payment.order_id', (int) $search)->orWhere('order_payment.id', (int) $search)->orWhere('user.name', 'like', '%'.$search.'%')->orWhere('payment.transaction_id', 'like', '%'.$search.'%');
+            else $builder->where('user.name', 'like', '%'.$search.'%')->orWhere('user.email', 'like', '%'.$search.'%')->orWhere('payment.transaction_id', 'like', '%'.$search.'%');
+        });
+        foreach (['status' => 'order_payment.status', 'method' => 'payment.method'] as $filter => $column) if ($request->filled($filter)) $query->where($column, $request->query($filter));
+        if ($request->filled('date_from')) $query->whereDate('order_payment.created_at', '>=', $request->query('date_from'));
+        if ($request->filled('date_to')) $query->whereDate('order_payment.created_at', '<=', $request->query('date_to'));
+
+        return $query->orderByDesc('order_payment.created_at')->orderByDesc('order_payment.id')->paginate(25, [
+            'order_payment.id', 'order_payment.order_id', 'order_payment.amount', 'order_payment.status', 'order_payment.paid_at', 'order_payment.created_at',
+            'payment.method', 'payment.provider', 'payment.transaction_id', 'payment.status as gateway_status', 'user.name as customer_name', 'order.status as order_status',
+        ])->withQueryString();
+    }
+
     private function editableRecord(string $section, int $id): ?object
     {
         return match ($section) {
-            'products' => DB::table('product')->leftJoin('product_variant', 'product_variant.product_id', '=', 'product.id')->leftJoin('product_image', function ($join) { $join->on('product_image.product_id', '=', 'product.id')->where('product_image.is_primary', true); })->where('product.id', $id)->whereNull('product.deleted_at')->orderBy('product_variant.id')->first(['product.*', 'product_variant.price', 'product_variant.sale_price', 'product_variant.stock_quantity', 'product_image.image_url']),
+            'products' => DB::table('product')->leftJoin('product_variant', 'product_variant.product_id', '=', 'product.id')
+                ->leftJoinSub($this->productImageSelection(), 'selected_product_image', 'selected_product_image.product_id', '=', 'product.id')
+                ->leftJoin('product_image', 'product_image.id', '=', 'selected_product_image.image_id')
+                ->where('product.id', $id)->whereNull('product.deleted_at')->orderBy('product_variant.id')
+                ->first(['product.*', 'product_variant.price', 'product_variant.sale_price', 'product_variant.stock_quantity', 'product_image.image_url']),
             'categories' => DB::table('category')->where('id', $id)->first(),
             'brands' => DB::table('brand')->where('id', $id)->first(),
             'customers' => $this->customerQuery()->where('id', $id)->first(),
@@ -554,7 +746,7 @@ class AdminController extends Controller
                 ['name' => 'main_category_id', 'label' => 'Main Category', 'type' => 'main-category'], ['name' => 'subcategory_id', 'label' => 'Subcategory', 'type' => 'subcategory'],
                 ['name' => 'brand_id', 'label' => 'Brand', 'type' => 'select', 'options' => ['' => 'No brand'] + $brands()],
                 ['name' => 'price', 'label' => 'Price', 'type' => 'number', 'required' => true], ['name' => 'sale_price', 'label' => 'Sale price (optional)', 'type' => 'number'],
-                ['name' => 'stock_quantity', 'label' => 'Initial stock', 'type' => 'number', 'required' => true], ['name' => 'image', 'label' => 'Product image', 'type' => 'file'], ['name' => 'image_url', 'label' => 'Or enter an image URL (optional)', 'type' => 'url'], ['name' => 'is_active', 'label' => 'Active', 'type' => 'checkbox'],
+                ['name' => 'stock_quantity', 'label' => 'Initial stock', 'type' => 'number', 'required' => true], ['name' => 'is_active', 'label' => 'Active', 'type' => 'checkbox'],
             ],
             'categories' => [],
             'brands' => [['name' => 'name', 'label' => 'Brand name', 'required' => true], ['name' => 'slug', 'label' => 'Slug (optional)'], ['name' => 'logo', 'label' => 'Logo URL (optional)', 'type' => 'url']],
@@ -562,6 +754,13 @@ class AdminController extends Controller
             'coupons' => [['name' => 'code', 'label' => 'Coupon code', 'required' => true], ['name' => 'discount_type', 'label' => 'Discount type', 'type' => 'select', 'options' => ['percentage' => 'Percentage', 'fixed' => 'Fixed amount']], ['name' => 'discount_value', 'label' => 'Discount value', 'type' => 'number', 'required' => true], ['name' => 'minimum_amount', 'label' => 'Minimum order amount', 'type' => 'number'], ['name' => 'start_date', 'label' => 'Starts at', 'type' => 'datetime-local'], ['name' => 'end_date', 'label' => 'Ends at', 'type' => 'datetime-local'], ['name' => 'is_active', 'label' => 'Active', 'type' => 'checkbox']],
             default => [],
         };
+    }
+
+    private function productImageSelection()
+    {
+        return DB::table('product_image')->select('product_id')
+            ->selectRaw('COALESCE(MIN(CASE WHEN is_primary = 1 THEN id END), MIN(id)) as image_id')
+            ->groupBy('product_id');
     }
 
     private function validatedData(Request $request, string $section, ?int $id = null): array
@@ -580,7 +779,13 @@ class AdminController extends Controller
                 'main_category_id' => ['required', 'integer', Rule::exists('category', 'id')->whereNull('parent_id')->where('is_active', true)],
                 'subcategory_id' => ['required', 'integer', Rule::exists('category', 'id')->where('parent_id', $mainCategoryId)->where('is_active', true)],
                 'brand_id' => ['nullable', 'integer', 'exists:brand,id'],
-                'price' => ['required', 'numeric', 'min:0'], 'sale_price' => ['nullable', 'numeric', 'min:0', 'lte:price'], 'stock_quantity' => ['required', 'integer', 'min:0'], 'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'], 'image_url' => ['nullable', 'url', 'max:2048'], 'is_active' => ['nullable', 'boolean'],
+                'price' => ['required', 'numeric', 'min:0'], 'sale_price' => ['nullable', 'numeric', 'min:0', 'lte:price'], 'stock_quantity' => ['required', 'integer', 'min:0'],
+                'images' => ['nullable','array','max:12'], 'images.*' => ['image','mimes:jpg,jpeg,png,webp','max:5120'],
+                'image' => ['nullable','image','mimes:jpg,jpeg,png,webp','max:5120'], 'image_url' => ['nullable','url','max:2048'],
+                'image_order' => ['nullable','array','max:30'], 'image_order.*' => ['string','max:80'],
+                'remove_image_ids' => ['nullable','array','max:30'], 'remove_image_ids.*' => ['integer','min:1'],
+                'discarded_image_indexes' => ['nullable','array','max:12'], 'discarded_image_indexes.*' => ['integer','min:0'],
+                'primary_image_reference' => ['nullable','string','max:80'], 'is_active' => ['nullable', 'boolean'],
             ],
             'categories' => [
                 'category_type' => ['required', Rule::in(['main', 'subcategory'])],
@@ -595,8 +800,7 @@ class AdminController extends Controller
             'brands' => ['name' => ['required', 'string', 'max:255'], 'slug' => ['nullable', 'string', 'max:255', Rule::unique('brand', 'slug')->ignore($id)], 'logo' => ['nullable', 'url', 'max:2048']],
             'customers' => ['name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email:rfc', 'max:255', Rule::unique('user', 'email')->ignore($id)], 'phone' => ['nullable', 'string', 'max:20', Rule::unique('user', 'phone')->ignore($id)], 'address' => ['nullable', 'string', 'max:255']],
             'coupons' => ['code' => ['required', 'string', 'max:100', Rule::unique('coupon', 'code')->ignore($id)], 'discount_type' => ['required', Rule::in(['percentage', 'fixed'])], 'discount_value' => ['required', 'numeric', 'gt:0'], 'minimum_amount' => ['nullable', 'numeric', 'min:0'], 'start_date' => ['nullable', 'date'], 'end_date' => ['nullable', 'date', 'after_or_equal:start_date'], 'is_active' => ['nullable', 'boolean']],
-            'orders' => ['status' => ['required', Rule::in(['pending', 'processing', 'shipped', 'completed', 'cancelled'])]],
-            'payments' => ['status' => ['required', Rule::in(['pending', 'paid', 'failed', 'refunded'])]],
+            'orders' => ['status' => ['required', Rule::in(['pending', 'processing', 'shipped', 'delivered', 'cancelled'])]],
             'inventory' => ['stock_quantity' => ['required', 'integer', 'min:0']],
             default => abort(404),
         };
@@ -617,56 +821,138 @@ class AdminController extends Controller
 
     private function createProduct(array $data): void
     {
-        DB::transaction(function () use ($data) {
-            $imageUrl = $this->productImageUrl($data);
-            $productId = DB::table('product')->insertGetId([
-                'name' => $data['name'], 'slug' => $data['slug'] ?: Str::slug($data['name']), 'sku' => $data['sku'],
-                'description' => $data['description'] ?? null, 'main_category_id' => $data['main_category_id'], 'category_id' => $data['subcategory_id'], 'brand_id' => $data['brand_id'] ?? null,
-                'status' => $data['status'], 'is_active' => $data['is_active'], 'created_at' => now(), 'updated_at' => now(),
-            ]);
-            DB::table('product_variant')->insert([
-                'product_id' => $productId, 'sku' => $data['sku'].'-DEFAULT', 'price' => $data['price'], 'sale_price' => $data['sale_price'] ?? null,
-                'stock_quantity' => $data['stock_quantity'], 'is_active' => $data['is_active'], 'created_at' => now(), 'updated_at' => now(),
-            ]);
-            if ($imageUrl) DB::table('product_image')->insert(['product_id' => $productId, 'image_url' => $imageUrl, 'is_primary' => true, 'sort_order' => 1, 'created_at' => now()]);
-        });
+        $storedPaths = [];
+        try {
+            DB::transaction(function () use ($data, &$storedPaths) {
+                $productId = DB::table('product')->insertGetId([
+                    'name' => $data['name'], 'slug' => $data['slug'] ?: Str::slug($data['name']), 'sku' => $data['sku'],
+                    'description' => $data['description'] ?? null, 'main_category_id' => $data['main_category_id'], 'category_id' => $data['subcategory_id'], 'brand_id' => $data['brand_id'] ?? null,
+                    'status' => $data['status'], 'is_active' => $data['is_active'], 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                DB::table('product_variant')->insert([
+                    'product_id' => $productId, 'sku' => $data['sku'].'-DEFAULT', 'price' => $data['price'], 'sale_price' => $data['sale_price'] ?? null,
+                    'stock_quantity' => $data['stock_quantity'], 'is_active' => $data['is_active'], 'created_at' => now(), 'updated_at' => now(),
+                ]);
+                $removedPaths = [];
+                $this->persistProductImages($productId, $data, $storedPaths, $removedPaths);
+            });
+        } catch (\Throwable $exception) {
+            foreach ($storedPaths as $path) Storage::disk('public')->delete($path);
+            throw $exception;
+        }
     }
 
     private function updateProduct(int $id, array $data): void
     {
-        DB::transaction(function () use ($id, $data) {
-            $imageUrl = $this->productImageUrl($data);
-            DB::table('product')->where('id', $id)->whereNull('deleted_at')->update([
-                'name' => $data['name'], 'slug' => $data['slug'] ?: Str::slug($data['name']), 'sku' => $data['sku'],
-                'description' => $data['description'] ?? null, 'main_category_id' => $data['main_category_id'], 'category_id' => $data['subcategory_id'], 'brand_id' => $data['brand_id'] ?? null,
-                'status' => $data['status'], 'is_active' => $data['is_active'], 'updated_at' => now(),
-            ]);
-            $variant = DB::table('product_variant')->where('product_id', $id)->orderBy('id')->first();
-            if ($variant) {
-                DB::table('product_variant')->where('id', $variant->id)->update(['price' => $data['price'], 'sale_price' => $data['sale_price'] ?? null, 'stock_quantity' => $data['stock_quantity'], 'is_active' => $data['is_active'], 'updated_at' => now()]);
-            } else {
-                DB::table('product_variant')->insert(['product_id' => $id, 'sku' => $data['sku'].'-DEFAULT', 'price' => $data['price'], 'sale_price' => $data['sale_price'] ?? null, 'stock_quantity' => $data['stock_quantity'], 'is_active' => $data['is_active'], 'created_at' => now(), 'updated_at' => now()]);
-            }
-            if ($imageUrl) {
-                $image = DB::table('product_image')->where('product_id', $id)->where('is_primary', true)->orderBy('id')->first();
-                if ($image) DB::table('product_image')->where('id', $image->id)->update(['image_url' => $imageUrl]);
-                else DB::table('product_image')->insert(['product_id' => $id, 'image_url' => $imageUrl, 'is_primary' => true, 'sort_order' => 1, 'created_at' => now()]);
-            }
-        });
+        abort_unless(DB::table('product')->where('id', $id)->whereNull('deleted_at')->exists(), 404);
+        $storedPaths = [];
+        $removedImageUrls = [];
+        try {
+            DB::transaction(function () use ($id, $data, &$storedPaths, &$removedImageUrls) {
+                DB::table('product')->where('id', $id)->whereNull('deleted_at')->update([
+                    'name' => $data['name'], 'slug' => $data['slug'] ?: Str::slug($data['name']), 'sku' => $data['sku'],
+                    'description' => $data['description'] ?? null, 'main_category_id' => $data['main_category_id'], 'category_id' => $data['subcategory_id'], 'brand_id' => $data['brand_id'] ?? null,
+                    'status' => $data['status'], 'is_active' => $data['is_active'], 'updated_at' => now(),
+                ]);
+                $variant = DB::table('product_variant')->where('product_id', $id)->orderBy('id')->first();
+                if ($variant) {
+                    DB::table('product_variant')->where('id', $variant->id)->update(['price' => $data['price'], 'sale_price' => $data['sale_price'] ?? null, 'stock_quantity' => $data['stock_quantity'], 'is_active' => $data['is_active'], 'updated_at' => now()]);
+                } else {
+                    DB::table('product_variant')->insert(['product_id' => $id, 'sku' => $data['sku'].'-DEFAULT', 'price' => $data['price'], 'sale_price' => $data['sale_price'] ?? null, 'stock_quantity' => $data['stock_quantity'], 'is_active' => $data['is_active'], 'created_at' => now(), 'updated_at' => now()]);
+                }
+                $this->persistProductImages($id, $data, $storedPaths, $removedImageUrls);
+            });
+        } catch (\Throwable $exception) {
+            foreach ($storedPaths as $path) Storage::disk('public')->delete($path);
+            throw $exception;
+        }
+        foreach ($removedImageUrls as $url) $this->deleteProductImageFile($url);
     }
 
-    private function productImageUrl(array $data): ?string
+    private function persistProductImages(int $productId, array $data, array &$storedPaths, array &$removedImageUrls): void
     {
-        if (! empty($data['image'])) {
-            $path = $data['image']->storePublicly('products', 'public');
-            abort_unless($path, 500, 'The product image could not be saved.');
-
-            // Keep uploaded image URLs relative to the active host and port.
-            // APP_URL may omit the port used by `php artisan serve` in development.
-            return '/storage/'.ltrim($path, '/');
+        $existing = DB::table('product_image')->where('product_id', $productId)->orderBy('sort_order')->orderBy('id')->get();
+        $removeIds = collect($data['remove_image_ids'] ?? [])->map(fn ($id) => (int) $id)->unique()->values();
+        if ($removeIds->isNotEmpty()) {
+            $toRemove = $existing->whereIn('id', $removeIds);
+            if ($toRemove->count() !== $removeIds->count()) {
+                throw ValidationException::withMessages(['remove_image_ids' => 'One or more selected images do not belong to this product.']);
+            }
+            foreach ($toRemove as $image) $removedImageUrls[] = $image->image_url;
+            DB::table('product_image')->where('product_id', $productId)->whereIn('id', $removeIds)->delete();
         }
 
-        return $data['image_url'] ?? null;
+        $remaining = DB::table('product_image')->where('product_id', $productId)->orderBy('sort_order')->orderBy('id')->get();
+        $discarded = collect($data['discarded_image_indexes'] ?? [])->map(fn ($index) => (int) $index)->unique();
+        $uploadFiles = array_values($data['images'] ?? []);
+        foreach ($discarded as $index) if (! array_key_exists($index, $uploadFiles)) {
+            throw ValidationException::withMessages(['discarded_image_indexes' => 'An uploaded image selection is invalid.']);
+        }
+        $newImageCount = count($uploadFiles) - $discarded->count() + (! empty($data['image']) ? 1 : 0) + (! empty($data['image_url']) ? 1 : 0);
+        if ($remaining->count() + $newImageCount > 12) {
+            throw ValidationException::withMessages(['images' => 'A product can have a maximum of 12 images. Remove existing images or select fewer files.']);
+        }
+        $newImages = [];
+        foreach ($uploadFiles as $index => $file) {
+            if ($discarded->contains($index)) continue;
+            $path = $file->storePublicly('products', 'public');
+            if (! $path) throw ValidationException::withMessages(['images' => 'A product image could not be saved.']);
+            $storedPaths[] = $path;
+            $newImages['new:'.$index] = '/storage/'.ltrim($path, '/');
+        }
+        if (! empty($data['image'])) {
+            $path = $data['image']->storePublicly('products', 'public');
+            if (! $path) throw ValidationException::withMessages(['image' => 'The product image could not be saved.']);
+            $storedPaths[] = $path;
+            $newImages['legacy-file'] = '/storage/'.ltrim($path, '/');
+        }
+        if (! empty($data['image_url'])) $newImages['legacy-url'] = $data['image_url'];
+
+        $existingById = $remaining->keyBy('id');
+        $references = [];
+        foreach ($data['image_order'] ?? [] as $reference) {
+            if (isset($references[$reference])) continue;
+            if (Str::startsWith($reference, 'existing:')) {
+                $id = (int) Str::after($reference, 'existing:');
+                if ($existingById->has($id)) $references[$reference] = ['type' => 'existing', 'image' => $existingById->get($id)];
+            } elseif (isset($newImages[$reference])) {
+                $references[$reference] = ['type' => 'new', 'url' => $newImages[$reference]];
+            }
+        }
+        foreach ($remaining as $image) $references['existing:'.$image->id] ??= ['type' => 'existing', 'image' => $image];
+        foreach ($newImages as $reference => $url) $references[$reference] ??= ['type' => 'new', 'url' => $url];
+
+        $primaryReference = $data['primary_image_reference'] ?? null;
+        if ($primaryReference && ! isset($references[$primaryReference])) {
+            throw ValidationException::withMessages(['primary_image_reference' => 'Select a primary image that belongs to this product.']);
+        }
+        if (! $primaryReference) {
+            foreach ($references as $reference => $entry) {
+                if ($entry['type'] === 'existing' && (bool) $entry['image']->is_primary) { $primaryReference = $reference; break; }
+            }
+            $primaryReference ??= array_key_first($references);
+        }
+
+        $sortOrder = 0;
+        foreach ($references as $reference => $entry) {
+            if ($entry['type'] === 'existing') {
+                DB::table('product_image')->where('id', $entry['image']->id)->where('product_id', $productId)
+                    ->update(['sort_order' => $sortOrder + 1, 'is_primary' => $reference === $primaryReference]);
+            } else {
+                DB::table('product_image')->insert([
+                    'product_id' => $productId, 'image_url' => $entry['url'], 'is_primary' => $reference === $primaryReference,
+                    'sort_order' => $sortOrder + 1, 'created_at' => now(),
+                ]);
+            }
+            $sortOrder++;
+        }
+    }
+
+    private function deleteProductImageFile(?string $url): void
+    {
+        if (! $url || Str::startsWith($url, ['http://','https://'])) return;
+        $path = Str::startsWith($url, '/storage/') ? Str::after($url, '/storage/') : (Str::startsWith($url, 'products/') ? $url : null);
+        if ($path) Storage::disk('public')->delete($path);
     }
 
     private function createCategory(array $data): void
@@ -757,31 +1043,30 @@ class AdminController extends Controller
         DB::transaction(function () use ($id, $status) {
             $order = DB::table('order')->where('id', $id)->whereNull('deleted_at')->lockForUpdate()->first();
             abort_unless($order, 404);
-            if ($status === 'cancelled' && $order->status !== 'cancelled') {
+            $current = $order->status === 'completed' ? 'delivered' : ($order->status ?: 'pending');
+            $transitions = [
+                'pending' => ['processing', 'cancelled'],
+                'processing' => ['shipped', 'cancelled'],
+                'shipped' => ['delivered'],
+                'delivered' => [],
+                'cancelled' => [],
+            ];
+            abort_unless($status === $current || in_array($status, $transitions[$current] ?? [], true), 409, 'This order cannot move to the selected status.');
+            if ($status === $current) return;
+            if ($status === 'cancelled' && $current !== 'cancelled') {
                 abort_if(DB::table('order_payment')->where('order_id', $id)->where('status', 'paid')->exists(), 409, 'Refund the paid amount before cancelling this order.');
                 $items = DB::table('order_item')->where('order_id', $id)->get();
                 foreach ($items as $item) {
                     if ($item->product_variant_id) DB::table('product_variant')->where('id', $item->product_variant_id)->whereNotNull('stock_quantity')->increment('stock_quantity', (int) $item->quantity);
                 }
-            } elseif ($order->status === 'cancelled' && $status !== 'cancelled') {
-                $items = DB::table('order_item')->where('order_id', $id)->get();
-                foreach ($items as $item) {
-                    if (! $item->product_variant_id) continue;
-                    $variant = DB::table('product_variant')->where('id', $item->product_variant_id)->lockForUpdate()->first();
-                    abort_unless($variant && ($variant->stock_quantity === null || (int) $variant->stock_quantity >= (int) $item->quantity), 409, 'There is not enough stock to reopen this order.');
-                    if ($variant->stock_quantity !== null) DB::table('product_variant')->where('id', $variant->id)->decrement('stock_quantity', (int) $item->quantity);
-                }
             }
             DB::table('order')->where('id', $id)->update(['status' => $status, 'updated_at' => now()]);
+            $shippingStatus = match ($status) { 'processing' => 'processing', 'shipped' => 'shipped', 'delivered' => 'delivered', 'cancelled' => 'cancelled', default => 'pending' };
+            $shippingUpdates = ['status' => $shippingStatus];
+            if ($status === 'shipped') $shippingUpdates['shipped_at'] = now();
+            if ($status === 'delivered') $shippingUpdates['delivered_at'] = now();
+            DB::table('shipping')->where('order_id', $id)->update($shippingUpdates);
         });
-    }
-
-    private function updatePayment(int $id, string $status): void
-    {
-        $payment = DB::table('order_payment')->where('id', $id)->first();
-        abort_unless($payment, 404);
-        DB::table('order_payment')->where('id', $id)->update(['status' => $status, 'paid_at' => $status === 'paid' ? ($payment->paid_at ?? now()) : null]);
-        DB::table('payment')->where('id', $payment->payment_id)->update(['status' => $status]);
     }
 
     private function slugged(array $data, string $table): array

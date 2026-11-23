@@ -4,10 +4,9 @@
 
 @section('content')
 @php
-    $fallbackImage = 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1000&q=85';
-    $images = $product->images->isNotEmpty() ? $product->images : collect([(object) ['image_url' => $fallbackImage]]);
-    $mainImage = $images->first()->image_url ?: $fallbackImage;
-    if (!\Illuminate\Support\Str::startsWith($mainImage, ['http://', 'https://', '/'])) $mainImage = asset('furni/images/'.$mainImage);
+    $images = $product->images->filter(fn ($image) => filled($image->image_url))->values();
+    $mainImage = $images->first()?->image_url;
+    if ($mainImage && !\Illuminate\Support\Str::startsWith($mainImage, ['http://', 'https://', '/'])) $mainImage = asset('furni/images/'.$mainImage);
     $defaultVariant = $product->variants->first(fn ($variant) => $variant->stock_quantity === null || $variant->stock_quantity > 0) ?: $product->variants->first();
     $defaultPrice = $defaultVariant ? ($defaultVariant->sale_price ?: $defaultVariant->price) : null;
     $roundedRating = $product->rating ? max(0, min(5, (int) round((float) $product->rating))) : 0;
@@ -19,13 +18,16 @@
     </nav>
 
     <section class="product-detail">
-        <div class="product-gallery">
-            <div class="product-gallery-main"><img src="{{ $mainImage }}" alt="{{ $product->name }}" data-product-main-image></div>
+        <div class="product-gallery" data-product-gallery>
+            <div class="product-gallery-main">
+                @if($mainImage)<button type="button" class="product-gallery-open" data-open-image-viewer aria-label="Open larger product image viewer"><img src="{{ $mainImage }}" alt="{{ $product->name }}" data-product-main-image><span>Click to zoom</span></button>@else<div class="product-gallery-empty">No product images available</div>@endif
+                @if($images->count() > 1)<button type="button" class="product-gallery-nav product-gallery-previous" data-gallery-previous aria-label="Previous product image">‹</button><button type="button" class="product-gallery-nav product-gallery-next" data-gallery-next aria-label="Next product image">›</button>@endif
+            </div>
             @if($images->count() > 1)
                 <div class="product-gallery-thumbnails" aria-label="Product images">
                     @foreach($images as $image)
                         @php
-                            $thumbnail = $image->image_url ?: $fallbackImage;
+                            $thumbnail = $image->image_url;
                             if (!\Illuminate\Support\Str::startsWith($thumbnail, ['http://', 'https://', '/'])) $thumbnail = asset('furni/images/'.$thumbnail);
                         @endphp
                         <button class="{{ $loop->first ? 'is-selected' : '' }}" type="button" data-product-thumbnail="{{ $thumbnail }}" aria-label="View product image {{ $loop->iteration }}" aria-pressed="{{ $loop->first ? 'true' : 'false' }}"><img src="{{ $thumbnail }}" alt="" loading="lazy"></button>
@@ -33,6 +35,11 @@
                 </div>
             @endif
         </div>
+        @if($mainImage)<dialog class="product-image-viewer" data-product-image-viewer aria-label="Product image viewer">
+            <div class="product-image-viewer-toolbar"><strong>{{ $product->name }}</strong><div><button type="button" data-zoom-out aria-label="Zoom out">−</button><button type="button" data-zoom-in aria-label="Zoom in">+</button><button type="button" data-close-image-viewer aria-label="Close image viewer">×</button></div></div>
+            <div class="product-image-viewer-stage"><button type="button" data-viewer-previous aria-label="Previous image">‹</button><img src="{{ $mainImage }}" alt="{{ $product->name }}" data-viewer-image><button type="button" data-viewer-next aria-label="Next image">›</button></div>
+            <p>Use the arrows to browse images · use + / − to zoom</p>
+        </dialog>@endif
 
         <div class="product-detail-copy">
             <div class="product-detail-meta">
@@ -160,16 +167,38 @@
 @push('scripts')
 <script>
 (() => {
-    const mainImage = document.querySelector('[data-product-main-image]');
-    document.querySelectorAll('[data-product-thumbnail]').forEach((button) => {
-        button.addEventListener('click', () => {
-            mainImage.src = button.dataset.productThumbnail;
-            document.querySelectorAll('[data-product-thumbnail]').forEach((thumbnail) => {
-                thumbnail.classList.toggle('is-selected', thumbnail === button);
-                thumbnail.setAttribute('aria-pressed', thumbnail === button ? 'true' : 'false');
+    const gallery = document.querySelector('[data-product-gallery]');
+    if (gallery && gallery.querySelector('[data-product-main-image]')) {
+        const mainImage = gallery.querySelector('[data-product-main-image]');
+        const thumbnails = [...gallery.querySelectorAll('[data-product-thumbnail]')];
+        const sources = thumbnails.length ? thumbnails.map(button => button.dataset.productThumbnail) : [mainImage.src];
+        const viewer = document.querySelector('[data-product-image-viewer]');
+        const viewerImage = viewer?.querySelector('[data-viewer-image]');
+        let selected = 0, zoom = 1;
+        const show = index => {
+            selected = (index + sources.length) % sources.length;
+            mainImage.src = sources[selected];
+            if (viewerImage) { viewerImage.src = sources[selected]; viewerImage.style.transform = `scale(${zoom})`; }
+            thumbnails.forEach((button, i) => {
+                button.classList.toggle('is-selected', i === selected);
+                button.setAttribute('aria-pressed', i === selected ? 'true' : 'false');
             });
+        };
+        thumbnails.forEach((button,index) => button.addEventListener('click', () => show(index)));
+        gallery.querySelector('[data-gallery-previous]')?.addEventListener('click', () => show(selected-1));
+        gallery.querySelector('[data-gallery-next]')?.addEventListener('click', () => show(selected+1));
+        gallery.querySelector('[data-open-image-viewer]')?.addEventListener('click', () => { zoom=1; show(selected); viewer?.showModal(); });
+        viewer?.querySelector('[data-close-image-viewer]')?.addEventListener('click', () => viewer.close());
+        viewer?.querySelector('[data-viewer-previous]')?.addEventListener('click', () => show(selected-1));
+        viewer?.querySelector('[data-viewer-next]')?.addEventListener('click', () => show(selected+1));
+        viewer?.querySelector('[data-zoom-in]')?.addEventListener('click', () => { zoom=Math.min(3,zoom+.25); show(selected); });
+        viewer?.querySelector('[data-zoom-out]')?.addEventListener('click', () => { zoom=Math.max(1,zoom-.25); show(selected); });
+        viewer?.addEventListener('click', event => { if (event.target === viewer) viewer.close(); });
+        viewer?.addEventListener('keydown', event => {
+            if (event.key === 'ArrowRight') { event.preventDefault(); show(selected+1); }
+            if (event.key === 'ArrowLeft') { event.preventDefault(); show(selected-1); }
         });
-    });
+    }
 
     const purchase = document.querySelector('[data-product-purchase]');
     if (!purchase) return;
