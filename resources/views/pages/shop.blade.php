@@ -6,8 +6,8 @@
 <div class="site-container shop-page">
     <div class="breadcrumbs"><a href="{{ route('index') }}">Home</a><span>›</span><strong>Shop</strong></div>
     <section class="shop-heading">
-        <div><span class="section-kicker">THE MARKETPLACE</span><h1>{{ $selectedCategory?->name ?? ($searchTerm ? 'Search results' : 'Explore all products') }}</h1>
-            <p>{{ $selectedCategory ? 'Browse '.$selectedCategory->name.' and refine the results.' : ($searchTerm ? 'Showing matches for “'.$searchTerm.'”' : 'Choose a category or use the filters to find what you need.') }}</p>
+        <div><span class="section-kicker">THE MARKETPLACE</span><h1>{{ $selectedCategory?->name ?? (request()->boolean('deal') ? "Today's Deals" : (request('sort') === 'orders' ? 'Best Sellers' : (request('sort') === 'newest' ? 'New Arrivals' : ($searchTerm ? 'Search results' : 'Explore all products')))) }}</h1>
+            <p>{{ $selectedCategory ? 'Browse '.$selectedCategory->name.' and refine the results.' : (request()->boolean('deal') ? 'Shop products with an active sale price.' : (request('sort') === 'orders' ? 'Products ranked by total sales.' : (request('sort') === 'newest' ? 'Recently added products, newest first.' : ($searchTerm ? 'Showing matches for “'.$searchTerm.'”' : 'Choose a category or use the filters to find what you need.')))) }}</p>
         </div>
         <span class="results-count">{{ $products->flatten()->unique('id')->count() }} products</span>
     </section>
@@ -35,7 +35,8 @@
             <form class="sidebar-section filter-form" action="{{ route('shop') }}" method="get">
                 @if(request('category'))<input type="hidden" name="category" value="{{ request('category') }}">@endif
                 @if(request('q'))<input type="hidden" name="q" value="{{ request('q') }}">@endif
-                <div class="filter-heading"><div><span class="section-kicker">REFINE YOUR SEARCH</span><h2>Filters</h2></div>@if(request()->hasAny(['min_price','max_price','min_rating','in_stock','filters']))<a href="{{ route('shop', array_filter(['category' => request('category'), 'q' => request('q')])) }}">Clear all</a>@endif</div>
+                @if(request()->boolean('deal'))<input type="hidden" name="deal" value="1">@endif
+                <div class="filter-heading"><div><span class="section-kicker">REFINE YOUR SEARCH</span><h2>Filters</h2></div>@if(request()->hasAny(['min_price','max_price','min_rating','in_stock','filters','deal','sort']))<a href="{{ route('shop', request()->boolean('deal') ? ['deal' => 1] : array_filter(['category' => request('category'), 'q' => request('q')])) }}">Clear all</a>@endif</div>
                 @if(!$selectedCategory || $selectedCategory->parent_id === null)
                     <p class="filter-hint">Choose a subcategory to see its product filters.</p>
                 @elseif(empty($facets))
@@ -68,6 +69,7 @@
             <form class="shop-toolbar" action="{{ route('shop') }}" method="get">
                 @if(request('category'))<input type="hidden" name="category" value="{{ request('category') }}">@endif
                 @if(request('q'))<input type="hidden" name="q" value="{{ request('q') }}">@endif
+                @if(request()->boolean('deal'))<input type="hidden" name="deal" value="1">@endif
                 @foreach(['min_price','max_price','min_rating','in_stock'] as $key)@if(request()->has($key))<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif @endforeach
                 @foreach((array) request('filters', []) as $key => $values)@foreach((array) $values as $value)<input type="hidden" name="filters[{{ $key }}][]" value="{{ $value }}">@endforeach @endforeach
                 <span>Showing <strong>{{ $products->flatten()->unique('id')->count() }}</strong> products</span>

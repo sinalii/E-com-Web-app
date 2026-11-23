@@ -26,7 +26,7 @@
 
     <section class="deal-strip">
         <div><span class="deal-icon">✦</span><div><strong>Today’s best deals</strong><small>Fresh finds. Better prices. While they last.</small></div></div>
-        <a href="{{ route('shop') }}">Explore all deals <span>→</span></a>
+        <a href="{{ route('shop', ['deal' => 1]) }}">Explore all deals <span>→</span></a>
     </section>
 
     <section class="section-block featured-section">
