@@ -92,8 +92,15 @@ class ShopController extends Controller
         if ($request->filled('min_rating')) $query->where('review_stats.average_rating', '>=', (float) $request->query('min_rating'));
         if ($request->boolean('in_stock')) $query->where('product_variant.stock_quantity', '>', 0);
 
-        $filterDefinitions = $selectedCategory && $selectedCategory->parent_id !== null
-            ? DB::table('category_filter')->where('category_id', $selectedCategory->id)->orderBy('sort_order')->get()
+        $filterCategoryIds = collect();
+        if ($selectedCategory) {
+            $filterCategoryIds = $selectedCategory->parent_id === null
+                ? $categoryTree->firstWhere('id', $selectedCategory->id)->children->pluck('id')
+                : collect([$selectedCategory->id]);
+        }
+        $filterDefinitions = $filterCategoryIds->isNotEmpty()
+            ? DB::table('category_filter')->whereIn('category_id', $filterCategoryIds)
+                ->orderBy('sort_order')->get()->unique('slug')->values()
             : collect();
         $subcategoryImages = [
             'Home & Garden' => 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=640&q=88',
@@ -304,9 +311,14 @@ class ShopController extends Controller
 
     private function facets($definitions, ?object $selectedCategory, $categoryTree): array
     {
-        if (! $selectedCategory || $selectedCategory->parent_id === null) return [];
+        if (! $selectedCategory) return [];
 
-        $productIds = DB::table('product')->where('category_id', $selectedCategory->id)
+        $categoryIds = $selectedCategory->parent_id === null
+            ? $categoryTree->firstWhere('id', $selectedCategory->id)->children->pluck('id')
+            : collect([$selectedCategory->id]);
+        if ($categoryIds->isEmpty()) return [];
+
+        $productIds = DB::table('product')->whereIn('category_id', $categoryIds)
             ->where('is_active', true)->whereNull('deleted_at')->pluck('id');
 
         $facets = [];

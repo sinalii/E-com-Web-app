@@ -36,8 +36,8 @@
                 @if(request('category'))<input type="hidden" name="category" value="{{ request('category') }}">@endif
                 @if(request('q'))<input type="hidden" name="q" value="{{ request('q') }}">@endif
                 <div class="filter-heading"><div><span class="section-kicker">REFINE YOUR SEARCH</span><h2>Filters</h2></div>@if(request()->hasAny(['min_price','max_price','min_rating','in_stock','filters']))<a href="{{ route('shop', array_filter(['category' => request('category'), 'q' => request('q')])) }}">Clear all</a>@endif</div>
-                @if(!$selectedCategory || $selectedCategory->parent_id === null)
-                    <p class="filter-hint">Choose a subcategory to see its product filters.</p>
+                @if(!$selectedCategory)
+                    <p class="filter-hint">Choose a category to see relevant product filters.</p>
                 @elseif(empty($facets))
                     <p class="filter-hint">Filters will appear when this category has products with matching details.</p>
                 @else
