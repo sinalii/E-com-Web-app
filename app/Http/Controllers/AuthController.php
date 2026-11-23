@@ -26,6 +26,14 @@ class AuthController extends Controller
             return back()->withErrors(['email' => 'Those details did not match an account.']);
         }
 
+        if (! $request->user()->isAdmin() && (! $request->user()->is_active || $request->user()->is_blocked)) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return back()->withErrors(['email' => 'This account is inactive or blocked.'])->onlyInput('email');
+        }
+
         $request->session()->regenerate();
 
         return redirect()->route($request->user()->isAdmin() ? 'admin.dashboard' : 'account')
