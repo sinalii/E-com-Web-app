@@ -50,6 +50,8 @@ class ShopController extends Controller
             'food-grocery-where-legally-available' => 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=900&q=85',
         ];
 
+        $allProducts = $products->flatten()->unique('id');
+
         return view('pages.index', [
             'categories' => $categories,
             'categoryTree' => $categoryTree,
@@ -58,7 +60,9 @@ class ShopController extends Controller
             'categoryPages' => $categoryHighlights->chunk(5)->values(),
             'categoryImages' => $categoryImages,
             'products' => $products,
-            'featured' => $products->flatten()->unique('id')->take(8),
+            'featured' => $allProducts
+                ->sortByDesc(fn ($product) => (int) ($product->orders_count ?? 0))
+                ->take(8),
             'allProductCount' => $products->flatten()->unique('id')->count(),
             'cartCount' => $this->cartCount(),
             'wishlistIds' => $this->wishlistIds(),
@@ -91,6 +95,10 @@ class ShopController extends Controller
         if ($request->filled('max_price')) $query->whereRaw('COALESCE(product_variant.sale_price, product_variant.price) <= ?', [(float) $request->query('max_price')]);
         if ($request->filled('min_rating')) $query->where('review_stats.average_rating', '>=', (float) $request->query('min_rating'));
         if ($request->boolean('in_stock')) $query->where('product_variant.stock_quantity', '>', 0);
+        if ($request->boolean('deal')) {
+            $query->whereNotNull('product_variant.sale_price')
+                ->whereColumn('product_variant.sale_price', '<', 'product_variant.price');
+        }
 
         $filterDefinitions = $selectedCategory && $selectedCategory->parent_id !== null
             ? DB::table('category_filter')->where('category_id', $selectedCategory->id)->orderBy('sort_order')->get()
