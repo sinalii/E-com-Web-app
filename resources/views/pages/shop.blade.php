@@ -93,7 +93,9 @@
                                 @php
                                     $price = $product->sale_price ?: $product->price;
                                     $image = $product->image_url ?: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=800&q=80';
-                                    if (!\Illuminate\Support\Str::startsWith($image, ['http://', 'https://', '/'])) $image = asset('furni/images/' . $image);
+                                    if (\Illuminate\Support\Str::startsWith($image, 'storage/')) $image = '/'.$image;
+                                    elseif (\Illuminate\Support\Str::startsWith($image, ['products/', 'categories/'])) $image = '/storage/'.$image;
+                                    elseif (!\Illuminate\Support\Str::startsWith($image, ['http://', 'https://', '/'])) $image = asset('furni/images/' . $image);
                                 @endphp
                                 <article class="market-product-card">
                                     <div class="product-image-wrap"><a class="product-image-link" href="{{ route('products.show', $product->slug ?: $product->id) }}" aria-label="View {{ $product->name }}"><img src="{{ $image }}" alt="{{ $product->name }}" loading="lazy"></a>

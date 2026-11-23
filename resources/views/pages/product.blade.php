@@ -7,6 +7,8 @@
     $fallbackImage = 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1000&q=85';
     $images = $product->images->isNotEmpty() ? $product->images : collect([(object) ['image_url' => $fallbackImage]]);
     $mainImage = $images->first()->image_url ?: $fallbackImage;
+    if (\Illuminate\Support\Str::startsWith($mainImage, 'storage/')) $mainImage = '/'.$mainImage;
+    elseif (\Illuminate\Support\Str::startsWith($mainImage, ['products/', 'categories/'])) $mainImage = '/storage/'.$mainImage;
     if (!\Illuminate\Support\Str::startsWith($mainImage, ['http://', 'https://', '/'])) $mainImage = asset('furni/images/'.$mainImage);
     $defaultVariant = $product->variants->first(fn ($variant) => $variant->stock_quantity === null || $variant->stock_quantity > 0) ?: $product->variants->first();
     $defaultPrice = $defaultVariant ? ($defaultVariant->sale_price ?: $defaultVariant->price) : null;
@@ -26,6 +28,8 @@
                     @foreach($images as $image)
                         @php
                             $thumbnail = $image->image_url ?: $fallbackImage;
+                            if (\Illuminate\Support\Str::startsWith($thumbnail, 'storage/')) $thumbnail = '/'.$thumbnail;
+                            elseif (\Illuminate\Support\Str::startsWith($thumbnail, ['products/', 'categories/'])) $thumbnail = '/storage/'.$thumbnail;
                             if (!\Illuminate\Support\Str::startsWith($thumbnail, ['http://', 'https://', '/'])) $thumbnail = asset('furni/images/'.$thumbnail);
                         @endphp
                         <button class="{{ $loop->first ? 'is-selected' : '' }}" type="button" data-product-thumbnail="{{ $thumbnail }}" aria-label="View product image {{ $loop->iteration }}" aria-pressed="{{ $loop->first ? 'true' : 'false' }}"><img src="{{ $thumbnail }}" alt="" loading="lazy"></button>

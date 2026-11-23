@@ -126,8 +126,10 @@ class ShopController extends Controller
         ];
         $recommendedSubcategories = $selectedCategory && $selectedCategory->parent_id === null
             ? $categoryTree->firstWhere('id', $selectedCategory->id)->children->map(function ($subcategory) use ($subcategoryImages) {
-                $subcategory->image_url = $subcategoryImages[$subcategory->name]
-                    ?? 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=640&q=88';
+                $subcategory->image_url = $subcategory->image_path
+                    ? asset('storage/'.$subcategory->image_path)
+                    : ($subcategoryImages[$subcategory->name]
+                        ?? 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=640&q=88');
                 return $subcategory;
             })
             : collect();
