@@ -12,7 +12,9 @@
                 <div class="category-carousel-page promo-grid">
                     @foreach($page as $category)
                         @php
-                            $image = $categoryImages[$category->slug] ?? 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=700&q=80';
+                            $image = $category->image_path
+                                ? asset('storage/'.$category->image_path)
+                                : ($categoryImages[$category->slug] ?? 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=700&q=80');
                         @endphp
                         <a class="promo-card category-slide {{ $loop->first || $loop->iteration === 2 ? 'promo-large' : 'promo-small' }}" href="{{ route('shop', ['category' => $category->id]) }}" style="--promo-image:url('{{ $image }}')">
                             <span class="promo-label">MARKETLY COLLECTION</span><h2>{{ $category->name }}</h2><p>Explore the latest in {{ strtolower($category->name) }}.</p><span class="promo-link">Shop {{ $category->name }} <b>→</b></span>
@@ -36,6 +38,8 @@
                 @php
                     $price = $product->sale_price ?: $product->price;
                     $productImage = $product->image_url ?: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=800&q=80';
+                    if (\Illuminate\Support\Str::startsWith($productImage, 'storage/')) $productImage = '/'.$productImage;
+                    elseif (\Illuminate\Support\Str::startsWith($productImage, ['products/', 'categories/'])) $productImage = '/storage/'.$productImage;
                 @endphp
                 <article class="market-product-card">
                     <div class="product-image-wrap"><a class="product-image-link" href="{{ route('products.show', $product->slug ?: $product->id) }}" aria-label="View {{ $product->name }}"><img src="{{ $productImage }}" alt="{{ $product->name }}" loading="lazy"></a>
