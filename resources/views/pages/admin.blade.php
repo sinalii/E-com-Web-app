@@ -39,6 +39,8 @@
                 <button class="button-primary" type="submit">Save settings</button>
             </form>
         </section>
+    @elseif($section === 'reports')
+        @include('pages.admin-reports')
     @else
         @if($section === 'categories')
             @php($editingIsMainCategory = $editing && $editing->parent_id === null)

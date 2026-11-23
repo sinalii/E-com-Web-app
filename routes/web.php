@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/profile', [AdminController::class, 'section'])->defaults('section', 'settings')->name('profile');
         Route::put('/profile', [AdminController::class, 'updateProfile'])->name('profile.update');
         Route::get('/orders/{id}', [AdminController::class, 'orderDetails'])->whereNumber('id')->name('order.show');
+        Route::get('/reports/download', [AdminController::class, 'downloadSalesReport'])->name('reports.download');
         Route::get('/{section}', [AdminController::class, 'section'])->name('section');
         Route::post('/{section}', [AdminController::class, 'store'])->name('resource.store');
         Route::put('/{section}/{id}', [AdminController::class, 'update'])->whereNumber('id')->name('resource.update');
