@@ -91,6 +91,10 @@ class ShopController extends Controller
         if ($request->filled('max_price')) $query->whereRaw('COALESCE(product_variant.sale_price, product_variant.price) <= ?', [(float) $request->query('max_price')]);
         if ($request->filled('min_rating')) $query->where('review_stats.average_rating', '>=', (float) $request->query('min_rating'));
         if ($request->boolean('in_stock')) $query->where('product_variant.stock_quantity', '>', 0);
+        if ($request->boolean('deal')) {
+            $query->whereNotNull('product_variant.sale_price')
+                ->whereColumn('product_variant.sale_price', '<', 'product_variant.price');
+        }
 
         $filterCategoryIds = collect();
         if ($selectedCategory) {
@@ -101,7 +105,12 @@ class ShopController extends Controller
         $filterDefinitions = $filterCategoryIds->isNotEmpty()
             ? DB::table('category_filter')->whereIn('category_id', $filterCategoryIds)
                 ->orderBy('sort_order')->get()->unique('slug')->values()
-            : collect();
+            : ($selectedCategory ? collect() : collect([
+                (object) ['name' => 'Price', 'slug' => 'price', 'input_type' => 'range'],
+                (object) ['name' => 'Customer feedback', 'slug' => 'customer-feedback', 'input_type' => 'rating'],
+                (object) ['name' => 'Availability', 'slug' => 'availability', 'input_type' => 'availability'],
+                (object) ['name' => 'Deals', 'slug' => 'deals', 'input_type' => 'deal'],
+            ]));
         $subcategoryImages = [
             'Home & Garden' => 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=640&q=88',
             'Home Appliances' => 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=640&q=88',
@@ -312,15 +321,18 @@ class ShopController extends Controller
 
     private function facets($definitions, ?object $selectedCategory, $categoryTree): array
     {
-        if (! $selectedCategory) return [];
+        $categoryIds = null;
+        if ($selectedCategory) {
+            $categoryIds = $selectedCategory->parent_id === null
+                ? $categoryTree->firstWhere('id', $selectedCategory->id)->children->pluck('id')
+                : collect([$selectedCategory->id]);
+            if ($categoryIds->isEmpty()) return [];
+        }
 
-        $categoryIds = $selectedCategory->parent_id === null
-            ? $categoryTree->firstWhere('id', $selectedCategory->id)->children->pluck('id')
-            : collect([$selectedCategory->id]);
-        if ($categoryIds->isEmpty()) return [];
-
-        $productIds = DB::table('product')->whereIn('category_id', $categoryIds)
-            ->where('is_active', true)->whereNull('deleted_at')->pluck('id');
+        $productQuery = DB::table('product')->join('category', 'category.id', '=', 'product.category_id')
+            ->where('product.is_active', true)->whereNull('product.deleted_at')->where('category.is_active', true);
+        if ($categoryIds !== null) $productQuery->whereIn('product.category_id', $categoryIds);
+        $productIds = $productQuery->pluck('product.id');
 
         $facets = [];
         foreach ($definitions as $definition) {
@@ -340,6 +352,14 @@ class ShopController extends Controller
             if ($definition->input_type === 'availability') {
                 $stockCount = DB::table('product_variant')->whereIn('product_id', $productIds)->where('is_active', true)->where('stock_quantity', '>', 0)->distinct('product_id')->count('product_id');
                 $facets[] = (object) [...(array) $definition, 'values' => [(object) ['value' => 'In stock', 'count' => $stockCount]]];
+                continue;
+            }
+
+            if ($definition->input_type === 'deal') {
+                $dealCount = DB::table('product_variant')->whereIn('product_id', $productIds)
+                    ->where('is_active', true)->whereNotNull('sale_price')
+                    ->whereColumn('sale_price', '<', 'price')->distinct('product_id')->count('product_id');
+                $facets[] = (object) [...(array) $definition, 'values' => [(object) ['value' => 'On sale', 'count' => $dealCount]]];
                 continue;
             }
 
