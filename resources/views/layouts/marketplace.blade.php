@@ -15,32 +15,44 @@
 <body>
     <div class="utility-bar">
         <div class="site-container utility-inner">
-            <span>Welcome to Marketly — a better way to discover.</span>
-            <div class="utility-links"><a href="{{ route('contact') }}">Help &amp; Contact</a><span>Deliver to <strong>Sri Lanka</strong></span><button type="button">EN&nbsp; · &nbsp;LKR</button></div>
+            <span>Welcome to Marketly â€” a better way to discover.</span>
+            <div class="utility-links"><a href="{{ route('contact') }}">Help &amp; Contact</a><span>Deliver to <strong>Sri Lanka</strong></span><button type="button">EN&nbsp; Â· &nbsp;LKR</button></div>
         </div>
     </div>
     <header class="site-header">
         <div class="site-container header-main">
             <a class="brand" href="{{ route('index') }}" aria-label="Marketly home"><span class="brand-mark">m</span>marketly<span class="brand-dot">.</span></a>
+            @unless(request()->routeIs('admin.*'))
             <form class="search-form" action="{{ route('shop') }}" method="get">
                 <label class="sr-only" for="market-search">Search products</label>
                 <select aria-label="Search category" name="category"><option value="">All categories</option>@foreach(($categories ?? collect()) as $category)<option value="{{ $category->id }}">{{ $category->name }}</option>@endforeach</select>
                 <input id="market-search" name="q" type="search" placeholder="Search for anything..." value="{{ request('q') }}">
                 <button type="submit" aria-label="Search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m16.5 16.5 4 4"></path></svg><span>Search</span></button>
             </form>
+            @endunless
             <div class="header-actions">
-                <a class="header-action account-action" href="{{ auth()->check() ? route('account') : route('login') }}"><span class="action-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.8-3.3 3.2-5 7-5s6.2 1.7 7 5"></path></svg></span><span><small>{{ auth()->check() ? 'Welcome back' : 'Hello, sign in' }}</small><strong>{{ auth()->check() ? auth()->user()->name : 'Sign in' }}</strong></span></a>
+                <a class="header-action account-action" href="{{ auth()->check() ? (auth()->user()->isAdmin() ? route('admin.dashboard') : route('account')) : route('login') }}"><span class="action-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"></circle><path d="M5 20c.8-3.3 3.2-5 7-5s6.2 1.7 7 5"></path></svg></span><span><small>{{ auth()->check() ? 'Welcome back' : 'Hello, sign in' }}</small><strong>{{ auth()->check() ? auth()->user()->name : 'Sign in' }}</strong></span></a>
+                @if(auth()->check() && auth()->user()->isAdmin())
+                    <a class="signup-link" href="{{ route('admin.dashboard') }}">Admin Dashboard</a>
+                    <form class="admin-header-logout" method="post" action="{{ route('logout') }}">@csrf<button class="admin-header-signout" type="submit"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17l5-5-5-5M15 12H3"></path><path d="M12 3h6a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-6"></path></svg>Sign out</button></form>
+                @endif
                 @guest<a class="signup-link" href="{{ route('register') }}">Sign up</a>@endguest
-                <a class="header-action icon-action" href="{{ auth()->check() ? route('wishlist') : route('login') }}" aria-label="Wishlist"><svg viewBox="0 0 24 24"><path d="M20.4 5.8a5 5 0 0 0-7.1 0L12 7.1l-1.3-1.3a5 5 0 0 0-7.1 7.1l1.3 1.3L12 21l7.1-6.8 1.3-1.3a5 5 0 0 0 0-7.1Z"></path></svg></a>
-                <a class="header-action cart-action" href="{{ route('cart') }}"><span class="cart-icon"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h8.5a2 2 0 0 0 2-1.6L21 8H6"></path><circle cx="10" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle></svg><i data-cart-count>{{ $cartCount ?? 0 }}</i></span><span><small>Your</small><strong>Cart</strong></span></a>
+                @unless(request()->routeIs('admin.*'))
+                <a class="header-action icon-action" href="{{ auth()->check() ? (auth()->user()->isAdmin() ? route('admin.dashboard') : route('wishlist')) : route('login') }}" aria-label="Wishlist"><svg viewBox="0 0 24 24"><path d="M20.4 5.8a5 5 0 0 0-7.1 0L12 7.1l-1.3-1.3a5 5 0 0 0-7.1 7.1l1.3 1.3L12 21l7.1-6.8 1.3-1.3a5 5 0 0 0 0-7.1Z"></path></svg></a>
+                <a class="header-action cart-action" href="{{ auth()->check() && auth()->user()->isAdmin() ? route('admin.dashboard') : (auth()->check() ? route('cart') : route('login')) }}"><span class="cart-icon"><svg viewBox="0 0 24 24"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h8.5a2 2 0 0 0 2-1.6L21 8H6"></path><circle cx="10" cy="21" r="1"></circle><circle cx="18" cy="21" r="1"></circle></svg><i>{{ $cartCount ?? 0 }}</i></span><span><small>Your</small><strong>Cart</strong></span></a>
+                @endunless
             </div>
         </div>
     </header>
+    @unless(request()->routeIs('admin.*'))
     <nav class="category-bar" aria-label="Main navigation"><div class="site-container category-bar-inner">
         <button class="all-categories" type="button" aria-controls="category-drawer" aria-expanded="false" data-category-drawer-open><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>All Categories</button>
         <div class="nav-categories">@foreach(($categories ?? collect())->take(5) as $category)<a href="{{ route('shop', ['category' => $category->id]) }}">{{ $category->name }}</a>@endforeach</div>
-        <div class="nav-promos"><a href="{{ route('shop') }}?deal=1"><span class="nav-spark">✦</span> Today's Deals</a><a href="{{ route('shop') }}">Best Sellers</a><a href="{{ route('shop') }}">New Arrivals</a><a href="{{ route('contact') }}">Customer Support</a></div>
+        @unless(auth()->check() && auth()->user()->isAdmin() && request()->routeIs('admin.*'))
+        <div class="nav-promos"><a href="{{ route('shop') }}?deal=1"><span class="nav-spark">âœ¦</span> Today's Deals</a><a href="{{ route('shop') }}">Best Sellers</a><a href="{{ route('shop') }}">New Arrivals</a><a href="{{ route('contact') }}">Customer Support</a></div>
+        @endunless
     </div></nav>
+    @endunless
 
     <div class="category-drawer-backdrop" data-category-drawer-close hidden></div>
     <aside class="category-drawer" id="category-drawer" aria-label="All categories" aria-hidden="true" inert>
@@ -109,13 +121,17 @@
 
     <main>@yield('content')</main>
 
-    <section class="newsletter"><div class="site-container newsletter-inner"><div><span class="newsletter-kicker">THE MARKETLY EDIT</span><h2>Good finds, delivered.</h2><p>Get first access to fresh picks and offers worth opening.</p></div><form action="{{ route('newsletter.subscribe') }}" method="post">@csrf<label class="sr-only" for="newsletter-email">Email address</label><input id="newsletter-email" name="email" type="email" placeholder="Your email address" required><button type="submit">Join the list <span>→</span></button></form></div></section>
+    @unless(request()->routeIs('admin.*'))
+
+    <section class="newsletter"><div class="site-container newsletter-inner"><div><span class="newsletter-kicker">THE MARKETLY EDIT</span><h2>Good finds, delivered.</h2><p>Get first access to fresh picks and offers worth opening.</p></div><form action="{{ route('newsletter.subscribe') }}" method="post">@csrf<label class="sr-only" for="newsletter-email">Email address</label><input id="newsletter-email" name="email" type="email" placeholder="Your email address" required><button type="submit">Join the list <span>â†’</span></button></form></div></section>
     <footer class="site-footer"><div class="site-container footer-grid">
-        <div class="footer-brand"><a class="brand" href="{{ route('index') }}"><span class="brand-mark">m</span>marketly<span class="brand-dot">.</span></a><p>Discover everyday essentials and unexpected favorites from a marketplace made for you.</p><div class="social-links"><a href="#facebook" aria-label="Facebook">f</a><a href="#instagram" aria-label="Instagram">ig</a><a href="#youtube" aria-label="YouTube">▶</a></div></div>
+        <div class="footer-brand"><a class="brand" href="{{ route('index') }}"><span class="brand-mark">m</span>marketly<span class="brand-dot">.</span></a><p>Discover everyday essentials and unexpected favorites from a marketplace made for you.</p><div class="social-links"><a href="#facebook" aria-label="Facebook">f</a><a href="#instagram" aria-label="Instagram">ig</a><a href="#youtube" aria-label="YouTube">â–¶</a></div></div>
         <div><h3>Shop</h3><a href="{{ route('shop') }}">All products</a><a href="{{ route('shop') }}">Today's deals</a><a href="{{ route('shop') }}">Best sellers</a><a href="{{ route('shop') }}">New arrivals</a></div>
         <div><h3>Customer care</h3><a href="{{ route('contact') }}">Contact us</a><a href="{{ route('contact') }}">Shipping information</a><a href="{{ route('contact') }}">Returns &amp; refunds</a><a href="{{ route('contact') }}">FAQs</a></div>
         <div><h3>About Marketly</h3><a href="{{ route('about') }}">Our story</a><a href="{{ route('services') }}">Why shop with us</a><a href="{{ route('contact') }}">Contact the team</a></div>
-    </div><div class="site-container footer-bottom"><span>© {{ date('Y') }} Marketly Marketplace. All rights reserved.</span><div><a href="#privacy">Privacy</a><a href="#terms">Terms</a><span>Secure shopping&nbsp; · &nbsp;🔒</span></div></div></footer>
+    </div><div class="site-container footer-bottom"><span>Â© {{ date('Y') }} Marketly Marketplace. All rights reserved.</span><div><a href="#privacy">Privacy</a><a href="#terms">Terms</a><span>Secure shopping&nbsp; Â· &nbsp;ðŸ”’</span></div></div></footer>
+
+    @endunless
     @stack('scripts')
     <script>
     (() => {
@@ -217,13 +233,13 @@
 
                 if (Object.hasOwn(payload, 'saved')) {
                     button.classList.toggle('is-saved', payload.saved);
-                    button.textContent = payload.saved ? '♥' : '♡';
+                    button.textContent = payload.saved ? 'â™¥' : 'â™¡';
                     button.setAttribute('aria-label', payload.saved ? 'Remove from wishlist' : 'Save to wishlist');
                 }
                 if (Object.hasOwn(payload, 'cart_count')) {
                     document.querySelectorAll('[data-cart-count]').forEach((count) => { count.textContent = payload.cart_count; });
                     button.classList.add('is-added');
-                    button.textContent = '✓';
+                    button.textContent = 'âœ“';
                     window.setTimeout(() => { button.textContent = originalText; button.classList.remove('is-added'); }, 1300);
                 }
                 notify(payload.message || 'Updated successfully.');

@@ -11,6 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
+    public const ROLE_CUSTOMER = 0;
+    public const ROLE_ADMIN = 1;
+
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, SoftDeletes;
 
@@ -48,7 +51,22 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'role' => 'integer',
             'is_admin' => 'boolean',
         ];
+    }
+
+    public function hasRole(string $role): bool
+    {
+        return match ($role) {
+            'admin' => (bool) $this->is_admin || (int) $this->role === self::ROLE_ADMIN,
+            'customer' => ! $this->isAdmin(),
+            default => false,
+        };
+    }
+
+    public function isAdmin(): bool
+    {
+        return (bool) $this->is_admin || (int) $this->role === self::ROLE_ADMIN;
     }
 }
