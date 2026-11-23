@@ -233,13 +233,13 @@
 
                 if (Object.hasOwn(payload, 'saved')) {
                     button.classList.toggle('is-saved', payload.saved);
-                    button.textContent = payload.saved ? 'â™¥' : 'â™¡';
+                    button.textContent = payload.saved ? '♥' : '♡';
                     button.setAttribute('aria-label', payload.saved ? 'Remove from wishlist' : 'Save to wishlist');
                 }
                 if (Object.hasOwn(payload, 'cart_count')) {
                     document.querySelectorAll('[data-cart-count]').forEach((count) => { count.textContent = payload.cart_count; });
                     button.classList.add('is-added');
-                    button.textContent = 'âœ“';
+                    button.textContent = '✓';
                     window.setTimeout(() => { button.textContent = originalText; button.classList.remove('is-added'); }, 1300);
                 }
                 notify(payload.message || 'Updated successfully.');
