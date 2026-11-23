@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -74,12 +75,27 @@ class AdminController extends Controller
     public function section(Request $request, string $section)
     {
         abort_unless(array_key_exists($section, self::SECTIONS), 404);
-        $records = $this->records($section);
+        $records = $this->records($section, $request);
         $editing = null;
 
         if ($request->filled('edit') && in_array($section, ['products', 'categories', 'brands', 'customers', 'coupons'], true)) {
             $editing = $this->editableRecord($section, (int) $request->query('edit'));
             abort_unless($editing, 404);
+
+            if ($section === 'products') {
+                $linkedCategory = $editing->category_id
+                    ? DB::table('category')->where('id', $editing->category_id)->first()
+                    : null;
+                if ($linkedCategory?->parent_id !== null) {
+                    $editing->main_category_id = $editing->main_category_id ?: $linkedCategory->parent_id;
+                    $editing->subcategory_id = $linkedCategory->id;
+                } elseif (! $editing->main_category_id && $linkedCategory) {
+                    $editing->main_category_id = $linkedCategory->id;
+                    $editing->subcategory_id = null;
+                } else {
+                    $editing->subcategory_id = null;
+                }
+            }
         }
 
         return view('pages.admin', [
@@ -87,12 +103,57 @@ class AdminController extends Controller
             'sections' => self::SECTIONS,
             'adminCategoryTree' => $this->categorySidebarTree(),
             'records' => $records,
+            'categoryParents' => $section === 'categories'
+                ? DB::table('category')->whereNull('parent_id')->orderBy('name')->get(['id', 'name'])
+                : collect(),
+            'mainCategories' => $section === 'products'
+                ? DB::table('category')->whereNull('parent_id')->where('is_active', true)->orderBy('name')->get(['id', 'name'])
+                : collect(),
             'fields' => $this->fields($section),
             'editing' => $editing,
             'stats' => [],
             'salesByMonth' => collect(),
             'recentOrders' => collect(),
         ]);
+    }
+
+    public function customerDetails(int $customer)
+    {
+        $record = $this->customerQuery()->where('id', $customer)->first();
+        abort_unless($record, 404);
+
+        return view('pages.admin-customer', [
+            'customer' => $record,
+            'addresses' => DB::table('address')->where('user_id', $record->id)->orderByDesc('is_default')->orderBy('id')->get(),
+            'orders' => DB::table('order')->where('user_id', $record->id)->orderByDesc('created_at')->paginate(25)->withQueryString(),
+            'sections' => self::SECTIONS,
+            'section' => 'customers',
+            'adminCategoryTree' => $this->categorySidebarTree(),
+        ]);
+    }
+
+    public function updateCustomerStatus(Request $request, int $customer)
+    {
+        $data = $request->validate(['action' => ['required', Rule::in(['activate', 'deactivate', 'block', 'unblock'])]]);
+        abort_unless($this->customerQuery()->where('id', $customer)->exists(), 404);
+
+        [$column, $value, $message] = match ($data['action']) {
+            'activate' => ['is_active', true, 'Customer account activated.'],
+            'deactivate' => ['is_active', false, 'Customer account deactivated.'],
+            'block' => ['is_blocked', true, 'Customer account blocked.'],
+            'unblock' => ['is_blocked', false, 'Customer account unblocked.'],
+        };
+        DB::table('user')->where('id', $customer)->update([$column => $value, 'updated_at' => now()]);
+
+        return back()->with('success', $message);
+    }
+
+    public function categorySubcategories(int $category)
+    {
+        abort_unless(DB::table('category')->where('id', $category)->whereNull('parent_id')->where('is_active', true)->exists(), 404);
+
+        return DB::table('category')->where('parent_id', $category)->where('is_active', true)
+            ->orderBy('name')->get(['id', 'name']);
     }
 
     public function orderDetails(int $id)
@@ -123,7 +184,7 @@ class AdminController extends Controller
 
         match ($section) {
             'products' => $this->createProduct($data),
-            'categories' => DB::table('category')->insert($this->slugged($data, 'category')),
+            'categories' => $this->createCategory($data),
             'brands' => DB::table('brand')->insert($this->slugged($data, 'brand')),
             'customers' => abort(405),
             'coupons' => DB::table('coupon')->insert($data + ['created_by' => $request->user()->id]),
@@ -140,7 +201,7 @@ class AdminController extends Controller
 
         match ($section) {
             'products' => $this->updateProduct($id, $data),
-            'categories' => DB::table('category')->where('id', $id)->update($this->slugged($data, 'category')),
+            'categories' => $this->updateCategory($id, $data),
             'brands' => DB::table('brand')->where('id', $id)->update($this->slugged($data, 'brand')),
             'customers' => $this->updateCustomer($id, $data),
             'orders' => $this->updateOrder($id, $data['status']),
@@ -160,10 +221,13 @@ class AdminController extends Controller
         if ($section === 'products') {
             DB::table('product')->where('id', $id)->whereNull('deleted_at')->update(['deleted_at' => now()]);
         } elseif ($section === 'categories') {
+            $category = DB::table('category')->where('id', $id)->first();
+            abort_unless($category, 404);
             abort_if(DB::table('product')->where('category_id', $id)->exists()
                 || DB::table('category')->where('parent_id', $id)->exists()
                 || DB::table('category_filter')->where('category_id', $id)->exists(), 409, 'Move its products, filters, and subcategories before removing this category.');
             DB::table('category')->where('id', $id)->delete();
+            if ($category->image_path) Storage::disk('public')->delete($category->image_path);
         } elseif ($section === 'brands') {
             abort_if(DB::table('product')->where('brand_id', $id)->exists(), 409, 'Move its products before removing this brand.');
             DB::table('brand')->where('id', $id)->delete();
@@ -196,7 +260,7 @@ class AdminController extends Controller
         return redirect()->route('admin.section', 'settings')->with('success', 'Profile settings updated.');
     }
 
-    private function records(string $section)
+    private function records(string $section, ?Request $request = null)
     {
         return match ($section) {
             'products' => DB::table('product')->leftJoin('category', 'category.id', '=', 'product.category_id')
@@ -206,9 +270,9 @@ class AdminController extends Controller
                 )->leftJoin('product_image', function ($join) { $join->on('product_image.product_id', '=', 'product.id')->where('product_image.is_primary', true); })
                 ->whereNull('product.deleted_at')->orderBy('product.name')
                 ->get(['product.id', 'product.name', 'product.sku', 'product.status', 'product_image.image_url', 'category.name as category_name', 'brand.name as brand_name', 'variant_totals.starting_price', 'variant_totals.stock_total']),
-            'categories' => DB::table('category')->leftJoin('category as parent', 'parent.id', '=', 'category.parent_id')->orderBy('category.name')->get(['category.id', 'category.name', 'category.slug', 'category.is_active', 'parent.name as parent_name']),
+            'categories' => $this->categoryRecords(),
             'brands' => DB::table('brand')->orderBy('name')->get(['id', 'name', 'slug', 'logo']),
-            'customers' => $this->customerQuery()->orderByDesc('created_at')->get(['id', 'name', 'email', 'phone', 'created_at']),
+            'customers' => $this->customerRecords($request ?? request()),
             'orders' => DB::table('order')->leftJoin('user', 'user.id', '=', 'order.user_id')->whereNull('order.deleted_at')->orderByDesc('order.created_at')->paginate(25, ['order.id', 'order.user_id', 'order.status', 'order.total_amount', 'order.created_at', 'user.name as customer_name'])->withQueryString(),
             'payments' => DB::table('order_payment')->leftJoin('payment', 'payment.id', '=', 'order_payment.payment_id')->leftJoin('order', 'order.id', '=', 'order_payment.order_id')->leftJoin('user', 'user.id', '=', 'order.user_id')->orderByDesc('order_payment.created_at')->paginate(25, ['order_payment.id', 'order_payment.order_id', 'order_payment.amount', 'order_payment.status', 'order_payment.paid_at', 'payment.method', 'payment.transaction_id', 'user.name as customer_name'])->withQueryString(),
             'coupons' => DB::table('coupon')->orderByDesc('id')->get(['id', 'code', 'discount_type', 'discount_value', 'minimum_amount', 'start_date', 'end_date', 'is_active']),
@@ -239,13 +303,14 @@ class AdminController extends Controller
             'products' => [
                 ['name' => 'name', 'label' => 'Product name', 'required' => true], ['name' => 'slug', 'label' => 'Slug (optional)'],
                 ['name' => 'sku', 'label' => 'Product SKU', 'required' => true], ['name' => 'description', 'label' => 'Description', 'type' => 'textarea'],
-                ['name' => 'category_id', 'label' => 'Category', 'type' => 'select', 'options' => ['' => 'No category'] + $categories()], ['name' => 'brand_id', 'label' => 'Brand', 'type' => 'select', 'options' => ['' => 'No brand'] + $brands()],
+                ['name' => 'main_category_id', 'label' => 'Main Category', 'type' => 'main-category'], ['name' => 'subcategory_id', 'label' => 'Subcategory', 'type' => 'subcategory'],
+                ['name' => 'brand_id', 'label' => 'Brand', 'type' => 'select', 'options' => ['' => 'No brand'] + $brands()],
                 ['name' => 'price', 'label' => 'Price', 'type' => 'number', 'required' => true], ['name' => 'sale_price', 'label' => 'Sale price (optional)', 'type' => 'number'],
                 ['name' => 'stock_quantity', 'label' => 'Initial stock', 'type' => 'number', 'required' => true], ['name' => 'image', 'label' => 'Product image', 'type' => 'file'], ['name' => 'image_url', 'label' => 'Or enter an image URL (optional)', 'type' => 'url'], ['name' => 'is_active', 'label' => 'Active', 'type' => 'checkbox'],
             ],
-            'categories' => [['name' => 'name', 'label' => 'Category name', 'required' => true], ['name' => 'slug', 'label' => 'Slug (optional)'], ['name' => 'parent_id', 'label' => 'Parent category ID (optional)', 'type' => 'number'], ['name' => 'is_active', 'label' => 'Active', 'type' => 'checkbox']],
+            'categories' => [],
             'brands' => [['name' => 'name', 'label' => 'Brand name', 'required' => true], ['name' => 'slug', 'label' => 'Slug (optional)'], ['name' => 'logo', 'label' => 'Logo URL (optional)', 'type' => 'url']],
-            'customers' => [['name' => 'name', 'label' => 'Customer name', 'required' => true], ['name' => 'email', 'label' => 'Email', 'type' => 'email', 'required' => true], ['name' => 'phone', 'label' => 'Phone']],
+            'customers' => [['name' => 'name', 'label' => 'Customer name', 'required' => true], ['name' => 'email', 'label' => 'Email', 'type' => 'email', 'required' => true], ['name' => 'phone', 'label' => 'Phone'], ['name' => 'address', 'label' => 'Address', 'type' => 'textarea']],
             'coupons' => [['name' => 'code', 'label' => 'Coupon code', 'required' => true], ['name' => 'discount_type', 'label' => 'Discount type', 'type' => 'select', 'options' => ['percentage' => 'Percentage', 'fixed' => 'Fixed amount']], ['name' => 'discount_value', 'label' => 'Discount value', 'type' => 'number', 'required' => true], ['name' => 'minimum_amount', 'label' => 'Minimum order amount', 'type' => 'number'], ['name' => 'start_date', 'label' => 'Starts at', 'type' => 'datetime-local'], ['name' => 'end_date', 'label' => 'Ends at', 'type' => 'datetime-local'], ['name' => 'is_active', 'label' => 'Active', 'type' => 'checkbox']],
             default => [],
         };
@@ -256,16 +321,31 @@ class AdminController extends Controller
         if (in_array($section, ['products', 'categories', 'brands'], true) && $request->filled('name') && ! $request->filled('slug')) {
             $request->merge(['slug' => $this->uniqueSlug($request->input('name'), $section === 'products' ? 'product' : ($section === 'categories' ? 'category' : 'brand'), $id)]);
         }
+        if ($section === 'categories') $request->merge(['is_active' => $request->boolean('is_active')]);
+        $mainCategoryId = is_numeric($request->input('main_category_id'))
+            ? (int) $request->input('main_category_id')
+            : 0;
         $rules = match ($section) {
             'products' => [
                 'name' => ['required', 'string', 'max:255'], 'slug' => ['nullable', 'string', 'max:255', Rule::unique('product', 'slug')->ignore($id)],
                 'sku' => ['required', 'string', 'max:90', Rule::unique('product', 'sku')->ignore($id)], 'description' => ['nullable', 'string'],
-                'category_id' => ['required', 'integer', 'exists:category,id'], 'brand_id' => ['nullable', 'integer', 'exists:brand,id'],
+                'main_category_id' => ['required', 'integer', Rule::exists('category', 'id')->whereNull('parent_id')->where('is_active', true)],
+                'subcategory_id' => ['required', 'integer', Rule::exists('category', 'id')->where('parent_id', $mainCategoryId)->where('is_active', true)],
+                'brand_id' => ['nullable', 'integer', 'exists:brand,id'],
                 'price' => ['required', 'numeric', 'min:0'], 'sale_price' => ['nullable', 'numeric', 'min:0', 'lte:price'], 'stock_quantity' => ['required', 'integer', 'min:0'], 'image' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'], 'image_url' => ['nullable', 'url', 'max:2048'], 'is_active' => ['nullable', 'boolean'],
             ],
-            'categories' => ['name' => ['required', 'string', 'max:255'], 'slug' => ['nullable', 'string', 'max:255', Rule::unique('category', 'slug')->ignore($id)], 'parent_id' => array_values(array_filter(['nullable', 'integer', 'exists:category,id', $id ? Rule::notIn([$id]) : null])), 'is_active' => ['nullable', 'boolean']],
+            'categories' => [
+                'category_type' => ['required', Rule::in(['main', 'subcategory'])],
+                'name' => ['required', 'string', 'max:255'],
+                'slug' => ['nullable', 'string', 'max:255', Rule::unique('category', 'slug')->ignore($id)],
+                'parent_id' => $request->input('category_type') === 'subcategory'
+                    ? ['required', 'integer', Rule::exists('category', 'id')->whereNull('parent_id'), $id ? Rule::notIn([$id]) : 'integer']
+                    : ['nullable'],
+                'image' => [$id ? 'nullable' : 'required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+                'is_active' => ['required', 'boolean'],
+            ],
             'brands' => ['name' => ['required', 'string', 'max:255'], 'slug' => ['nullable', 'string', 'max:255', Rule::unique('brand', 'slug')->ignore($id)], 'logo' => ['nullable', 'url', 'max:2048']],
-            'customers' => ['name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email:rfc', 'max:255', Rule::unique('user', 'email')->ignore($id)], 'phone' => ['nullable', 'string', 'max:20']],
+            'customers' => ['name' => ['required', 'string', 'max:255'], 'email' => ['required', 'email:rfc', 'max:255', Rule::unique('user', 'email')->ignore($id)], 'phone' => ['nullable', 'string', 'max:20', Rule::unique('user', 'phone')->ignore($id)], 'address' => ['nullable', 'string', 'max:255']],
             'coupons' => ['code' => ['required', 'string', 'max:100', Rule::unique('coupon', 'code')->ignore($id)], 'discount_type' => ['required', Rule::in(['percentage', 'fixed'])], 'discount_value' => ['required', 'numeric', 'gt:0'], 'minimum_amount' => ['nullable', 'numeric', 'min:0'], 'start_date' => ['nullable', 'date'], 'end_date' => ['nullable', 'date', 'after_or_equal:start_date'], 'is_active' => ['nullable', 'boolean']],
             'orders' => ['status' => ['required', Rule::in(['pending', 'processing', 'shipped', 'completed', 'cancelled'])]],
             'payments' => ['status' => ['required', Rule::in(['pending', 'paid', 'failed', 'refunded'])]],
@@ -293,7 +373,7 @@ class AdminController extends Controller
             $imageUrl = $this->productImageUrl($data);
             $productId = DB::table('product')->insertGetId([
                 'name' => $data['name'], 'slug' => $data['slug'] ?: Str::slug($data['name']), 'sku' => $data['sku'],
-                'description' => $data['description'] ?? null, 'category_id' => $data['category_id'] ?? null, 'brand_id' => $data['brand_id'] ?? null,
+                'description' => $data['description'] ?? null, 'main_category_id' => $data['main_category_id'], 'category_id' => $data['subcategory_id'], 'brand_id' => $data['brand_id'] ?? null,
                 'status' => $data['status'], 'is_active' => $data['is_active'], 'created_at' => now(), 'updated_at' => now(),
             ]);
             DB::table('product_variant')->insert([
@@ -310,7 +390,7 @@ class AdminController extends Controller
             $imageUrl = $this->productImageUrl($data);
             DB::table('product')->where('id', $id)->whereNull('deleted_at')->update([
                 'name' => $data['name'], 'slug' => $data['slug'] ?: Str::slug($data['name']), 'sku' => $data['sku'],
-                'description' => $data['description'] ?? null, 'category_id' => $data['category_id'] ?? null, 'brand_id' => $data['brand_id'] ?? null,
+                'description' => $data['description'] ?? null, 'main_category_id' => $data['main_category_id'], 'category_id' => $data['subcategory_id'], 'brand_id' => $data['brand_id'] ?? null,
                 'status' => $data['status'], 'is_active' => $data['is_active'], 'updated_at' => now(),
             ]);
             $variant = DB::table('product_variant')->where('product_id', $id)->orderBy('id')->first();
@@ -341,10 +421,87 @@ class AdminController extends Controller
         return $data['image_url'] ?? null;
     }
 
+    private function createCategory(array $data): void
+    {
+        $imagePath = $data['image']->storePublicly('categories', 'public');
+        abort_unless($imagePath, 500, 'The category image could not be saved.');
+
+        try {
+            DB::table('category')->insert([
+                'name' => $data['name'],
+                'slug' => $data['slug'] ?: Str::slug($data['name']),
+                'parent_id' => $data['category_type'] === 'subcategory' ? (int) $data['parent_id'] : null,
+                'image_path' => $imagePath,
+                'is_active' => $data['is_active'],
+            ]);
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($imagePath);
+            throw $exception;
+        }
+    }
+
+    private function updateCategory(int $id, array $data): void
+    {
+        $category = DB::table('category')->where('id', $id)->first();
+        abort_unless($category, 404);
+
+        $updates = [
+            'name' => $data['name'],
+            'slug' => $data['slug'] ?: Str::slug($data['name']),
+            'parent_id' => $data['category_type'] === 'subcategory' ? (int) $data['parent_id'] : null,
+            'is_active' => $data['is_active'],
+        ];
+
+        if ($data['image'] ?? null) {
+            $imagePath = $data['image']->storePublicly('categories', 'public');
+            abort_unless($imagePath, 500, 'The category image could not be saved.');
+            $updates['image_path'] = $imagePath;
+        }
+
+        DB::table('category')->where('id', $id)->update($updates);
+
+        if (isset($imagePath) && $category->image_path) {
+            Storage::disk('public')->delete($category->image_path);
+        }
+    }
+
+    private function categoryRecords()
+    {
+        $categories = DB::table('category')->orderBy('name')->get();
+        $children = $categories->whereNotNull('parent_id')->groupBy('parent_id');
+
+        return $categories->whereNull('parent_id')->values()->map(function ($category) use ($children) {
+            $category->children = $children->get($category->id, collect())->values();
+
+            return $category;
+        });
+    }
+
     private function updateCustomer(int $id, array $data): void
     {
         abort_unless($this->customerQuery()->where('id', $id)->exists(), 404);
         DB::table('user')->where('id', $id)->whereNull('deleted_at')->update($data + ['updated_at' => now()]);
+    }
+
+    private function customerRecords(Request $request)
+    {
+        $query = $this->customerQuery();
+        $search = trim((string) $request->query('search', ''));
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search) {
+                $builder->where('name', 'like', '%'.$search.'%')
+                    ->orWhere('email', 'like', '%'.$search.'%');
+            });
+        }
+
+        match ($request->query('status')) {
+            'active' => $query->where('is_active', true)->where('is_blocked', false),
+            'inactive' => $query->where('is_active', false)->where('is_blocked', false),
+            'blocked' => $query->where('is_blocked', true),
+            default => null,
+        };
+
+        return $query->orderByDesc('created_at')->paginate(25, ['id', 'name', 'email', 'phone', 'created_at', 'is_active', 'is_blocked'])->withQueryString();
     }
 
     private function updateOrder(int $id, string $status): void

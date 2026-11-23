@@ -6,6 +6,8 @@ use App\Models\User;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AuthenticationAndRolesTest extends TestCase
@@ -21,6 +23,8 @@ class AuthenticationAndRolesTest extends TestCase
             $table->string('password');
             $table->unsignedTinyInteger('role')->nullable();
             $table->boolean('is_admin')->nullable()->default(false);
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_blocked')->default(false);
             $table->string('phone')->nullable();
             $table->string('profile')->nullable();
             $table->boolean('email_verify')->nullable();
@@ -38,10 +42,24 @@ class AuthenticationAndRolesTest extends TestCase
             $table->timestamps();
             $table->softDeletes();
         });
+        Schema::create('address', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('user_id')->nullable();
+            $table->string('contact_name')->nullable();
+            $table->string('phone')->nullable();
+            $table->string('address_line1')->nullable();
+            $table->string('address_line2')->nullable();
+            $table->string('city')->nullable();
+            $table->string('state')->nullable();
+            $table->string('postal_code')->nullable();
+            $table->string('country')->nullable();
+            $table->boolean('is_default')->default(false);
+        });
         Schema::create('product', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
             $table->string('sku')->nullable();
+            $table->unsignedBigInteger('main_category_id')->nullable();
             $table->unsignedBigInteger('category_id')->nullable();
             $table->unsignedBigInteger('brand_id')->nullable();
             $table->string('description')->nullable();
@@ -122,7 +140,13 @@ class AuthenticationAndRolesTest extends TestCase
             $table->unsignedBigInteger('parent_id')->nullable();
             $table->string('name');
             $table->string('slug')->nullable();
+            $table->string('image_path')->nullable();
             $table->boolean('is_active')->default(true);
+        });
+        Schema::create('category_filter', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('category_id');
+            $table->string('slug')->nullable();
         });
     }
 
@@ -214,10 +238,11 @@ class AuthenticationAndRolesTest extends TestCase
     public function test_admin_can_create_edit_view_and_soft_delete_a_product(): void
     {
         $admin = $this->makeUser('catalog-admin@example.com', User::ROLE_ADMIN, true);
-        $categoryId = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Test category', 'slug' => 'test-category', 'is_active' => true]);
+        $mainCategoryId = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Test main category', 'slug' => 'test-main-category', 'is_active' => true]);
+        $categoryId = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Test category', 'slug' => 'test-category', 'parent_id' => $mainCategoryId, 'is_active' => true]);
 
         $this->actingAs($admin)->post(route('admin.resource.store', 'products'), [
-            'name' => 'Admin created product', 'sku' => 'ADMIN-1', 'category_id' => $categoryId,
+            'name' => 'Admin created product', 'sku' => 'ADMIN-1', 'main_category_id' => $mainCategoryId, 'subcategory_id' => $categoryId,
             'price' => 1250, 'stock_quantity' => 6, 'is_active' => 1,
         ])->assertRedirect(route('admin.section', 'products'));
 
@@ -227,13 +252,208 @@ class AuthenticationAndRolesTest extends TestCase
         $this->get(route('admin.section', 'products'))->assertOk()->assertSee('Admin created product');
 
         $this->put(route('admin.resource.update', ['products', $productId]), [
-            'name' => 'Updated admin product', 'sku' => 'ADMIN-1', 'category_id' => $categoryId,
+            'name' => 'Updated admin product', 'sku' => 'ADMIN-1', 'main_category_id' => $mainCategoryId, 'subcategory_id' => $categoryId,
             'price' => 1450, 'stock_quantity' => 8, 'is_active' => 1,
         ])->assertRedirect(route('admin.section', 'products'));
         $this->assertSame('Updated admin product', \Illuminate\Support\Facades\DB::table('product')->where('id', $productId)->value('name'));
 
         $this->delete(route('admin.resource.destroy', ['products', $productId]))->assertRedirect(route('admin.section', 'products'));
         $this->assertNotNull(\Illuminate\Support\Facades\DB::table('product')->where('id', $productId)->value('deleted_at'));
+    }
+
+    public function test_product_category_dropdown_filters_children_and_saves_the_selected_pair(): void
+    {
+        $admin = $this->makeUser('product-category-admin@example.com', User::ROLE_ADMIN, true);
+        $mainA = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Electronics', 'slug' => 'electronics', 'is_active' => true]);
+        $mainB = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Fashion', 'slug' => 'fashion', 'is_active' => true]);
+        $emptyMain = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Food', 'slug' => 'food', 'is_active' => true]);
+        $subA = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Phones', 'slug' => 'phones', 'parent_id' => $mainA, 'is_active' => true]);
+        $subA2 = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Laptops', 'slug' => 'laptops', 'parent_id' => $mainA, 'is_active' => true]);
+        $subB = \Illuminate\Support\Facades\DB::table('category')->insertGetId(['name' => 'Clothing', 'slug' => 'clothing', 'parent_id' => $mainB, 'is_active' => true]);
+        \Illuminate\Support\Facades\DB::table('category')->insert(['name' => 'Inactive phones', 'slug' => 'inactive-phones', 'parent_id' => $mainA, 'is_active' => false]);
+
+        $response = $this->actingAs($admin)->get(route('admin.categories.subcategories', $mainA));
+        $response->assertOk()->assertExactJson([
+            ['id' => $subA2, 'name' => 'Laptops'], ['id' => $subA, 'name' => 'Phones'],
+        ]);
+        $this->get(route('admin.categories.subcategories', $emptyMain))->assertOk()->assertExactJson([]);
+
+        $productId = \Illuminate\Support\Facades\DB::table('product')->insertGetId([
+            'name' => 'Existing phone', 'sku' => 'EXISTING-PHONE', 'main_category_id' => $mainA, 'category_id' => $subA, 'is_active' => true,
+        ]);
+        $editResponse = $this->get(route('admin.section', ['products', 'edit' => $productId]))->assertOk()
+            ->assertSee('id="product-main-category"', false)
+            ->assertSee('data-selected-subcategory="'.$subA.'"', false)
+            ->assertSee('value="'.$mainA.'" selected', false);
+        preg_match('/<select id="product-main-category"[^>]*>(.*?)<\/select>/s', $editResponse->getContent(), $mainSelect);
+        $this->assertStringContainsString('Electronics', $mainSelect[1] ?? '');
+        $this->assertStringContainsString('Fashion', $mainSelect[1] ?? '');
+        $this->assertStringNotContainsString('Phones', $mainSelect[1] ?? '');
+
+        $this->post(route('admin.resource.store', 'products'), [
+            'name' => 'Mismatched product', 'sku' => 'MISMATCHED', 'main_category_id' => $mainA, 'subcategory_id' => $subB,
+            'price' => 500, 'stock_quantity' => 2, 'is_active' => 1,
+        ])->assertSessionHasErrors('subcategory_id');
+
+        $this->post(route('admin.resource.store', 'products'), [
+            'name' => 'Admin laptop', 'sku' => 'ADMIN-LAPTOP', 'main_category_id' => $mainA, 'subcategory_id' => $subA2,
+            'price' => 500, 'stock_quantity' => 2, 'is_active' => 1,
+        ])->assertRedirect(route('admin.section', 'products'));
+        $this->assertDatabaseHas('product', [
+            'sku' => 'ADMIN-LAPTOP', 'main_category_id' => $mainA, 'category_id' => $subA2,
+        ]);
+
+        $this->put(route('admin.resource.update', ['products', $productId]), [
+            'name' => 'Existing phone', 'sku' => 'EXISTING-PHONE', 'main_category_id' => $mainB, 'subcategory_id' => $subB,
+            'price' => 750, 'stock_quantity' => 4, 'is_active' => 1,
+        ])->assertRedirect(route('admin.section', 'products'));
+        $this->assertDatabaseHas('product', [
+            'id' => $productId, 'main_category_id' => $mainB, 'category_id' => $subB,
+        ]);
+    }
+
+    public function test_admin_can_manage_main_and_subcategories_with_images_on_one_page(): void
+    {
+        Storage::fake('public');
+        $admin = $this->makeUser('category-admin@example.com', User::ROLE_ADMIN, true);
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pLsAAAAASUVORK5CYII=');
+
+        $this->actingAs($admin)->post(route('admin.resource.store', 'categories'), [
+            'category_type' => 'main', 'name' => 'Electronics', 'slug' => '', 'is_active' => 1,
+            'image' => UploadedFile::fake()->createWithContent('electronics.png', $png),
+        ])->assertRedirect(route('admin.section', 'categories'));
+
+        $main = \Illuminate\Support\Facades\DB::table('category')->where('name', 'Electronics')->first();
+        $this->assertNotNull($main);
+        $this->assertNull($main->parent_id);
+        $this->assertSame('electronics', $main->slug);
+        Storage::disk('public')->assertExists($main->image_path);
+
+        $this->post(route('admin.resource.store', 'categories'), [
+            'category_type' => 'subcategory', 'name' => 'Mobile Phones', 'slug' => '', 'parent_id' => $main->id, 'is_active' => 1,
+            'image' => UploadedFile::fake()->createWithContent('mobile.png', $png),
+        ])->assertRedirect(route('admin.section', 'categories'));
+
+        $sub = \Illuminate\Support\Facades\DB::table('category')->where('name', 'Mobile Phones')->first();
+        $this->assertNotNull($sub);
+        $this->assertSame((int) $main->id, (int) $sub->parent_id);
+        Storage::disk('public')->assertExists($sub->image_path);
+
+        $this->get(route('admin.section', ['categories', 'edit' => $sub->id]))->assertOk()
+            ->assertSee('Current subcategory image')
+            ->assertSee(asset('storage/'.$sub->image_path), false);
+
+        $this->get(route('admin.section', 'categories'))->assertOk()
+            ->assertSee('Add New Category')->assertSee('Add New Subcategory')
+            ->assertSee('Electronics')->assertSee('Mobile Phones')
+            ->assertSee(asset('storage/'.$main->image_path), false)
+            ->assertSee(asset('storage/'.$sub->image_path), false);
+
+        $this->put(route('admin.resource.update', ['categories', $sub->id]), [
+            'category_type' => 'subcategory', 'name' => 'Mobile Phones', 'slug' => $sub->slug,
+            'parent_id' => $main->id, 'is_active' => 0,
+        ])->assertRedirect(route('admin.section', 'categories'));
+        $updatedSub = \Illuminate\Support\Facades\DB::table('category')->where('id', $sub->id)->first();
+        $this->assertSame($sub->image_path, $updatedSub->image_path);
+        $this->assertFalse((bool) $updatedSub->is_active);
+
+        $this->put(route('admin.resource.update', ['categories', $sub->id]), [
+            'category_type' => 'subcategory', 'name' => 'Mobile Phones', 'slug' => $sub->slug,
+            'parent_id' => $main->id, 'is_active' => 0,
+            'image' => UploadedFile::fake()->createWithContent('mobile-new.png', $png),
+        ])->assertRedirect(route('admin.section', 'categories'));
+        $replacementPath = \Illuminate\Support\Facades\DB::table('category')->where('id', $sub->id)->value('image_path');
+        $this->assertNotSame($sub->image_path, $replacementPath);
+        Storage::disk('public')->assertMissing($sub->image_path);
+        Storage::disk('public')->assertExists($replacementPath);
+
+        $this->delete(route('admin.resource.destroy', ['categories', $sub->id]))
+            ->assertRedirect(route('admin.section', 'categories'));
+        $this->assertDatabaseMissing('category', ['id' => $sub->id]);
+        Storage::disk('public')->assertMissing($replacementPath);
+
+        $this->delete(route('admin.resource.destroy', ['categories', $main->id]))
+            ->assertRedirect(route('admin.section', 'categories'));
+        $this->assertDatabaseMissing('category', ['id' => $main->id]);
+        Storage::disk('public')->assertMissing($main->image_path);
+    }
+
+    public function test_category_image_is_required_and_subcategory_parent_must_be_a_main_category(): void
+    {
+        $admin = $this->makeUser('category-validation@example.com', User::ROLE_ADMIN, true);
+        $this->actingAs($admin)->post(route('admin.resource.store', 'categories'), [
+            'category_type' => 'main', 'name' => 'No image', 'is_active' => 1,
+        ])->assertSessionHasErrors('image');
+
+        $subcategory = \Illuminate\Support\Facades\DB::table('category')->insertGetId([
+            'name' => 'Existing child', 'slug' => 'existing-child', 'parent_id' => 900, 'is_active' => true,
+        ]);
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/pLsAAAAASUVORK5CYII=');
+        $this->post(route('admin.resource.store', 'categories'), [
+            'category_type' => 'subcategory', 'name' => 'Invalid parent', 'parent_id' => $subcategory, 'is_active' => 1,
+            'image' => UploadedFile::fake()->createWithContent('invalid-parent.png', $png),
+        ])->assertSessionHasErrors('parent_id');
+    }
+
+    public function test_customer_management_search_filters_details_orders_edit_and_status_controls(): void
+    {
+        $admin = $this->makeUser('customer-module-admin@example.com', User::ROLE_ADMIN, true);
+        $customer = $this->makeUser('ada@example.com', User::ROLE_CUSTOMER, false);
+        $other = $this->makeUser('grace@example.com', User::ROLE_CUSTOMER, false);
+        \Illuminate\Support\Facades\DB::table('user')->where('id', $customer->id)->update(['name' => 'Ada Lovelace']);
+        \Illuminate\Support\Facades\DB::table('user')->where('id', $other->id)->update(['is_blocked' => true]);
+
+        \Illuminate\Support\Facades\DB::table('address')->insert([
+            'user_id' => $customer->id, 'contact_name' => 'Ada Lovelace', 'phone' => '0771234567',
+            'address_line1' => '12 Main Street', 'city' => 'Colombo', 'country' => 'Sri Lanka', 'is_default' => true,
+        ]);
+        $orderId = \Illuminate\Support\Facades\DB::table('order')->insertGetId([
+            'user_id' => $customer->id, 'status' => 'shipped', 'total_amount' => 3250, 'created_at' => now(),
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.section', ['customers', 'search' => 'Ada']))
+            ->assertOk()->assertSee('Ada Lovelace')->assertDontSee('grace@example.com');
+        $this->get(route('admin.section', ['customers', 'status' => 'blocked']))
+            ->assertOk()->assertSee('grace@example.com')->assertDontSee('ada@example.com');
+
+        $this->get(route('admin.customer.show', $customer->id))->assertOk()
+            ->assertSee('12 Main Street')->assertSee('Colombo')->assertSee('#'.$orderId)->assertSee('Shipped');
+
+        $this->get(route('admin.section', ['customers', 'edit' => $customer->id]))->assertOk()
+            ->assertSee('ada@example.com')->assertSee('Customer name');
+        $this->put(route('admin.resource.update', ['customers', $customer->id]), [
+            'name' => 'Ada Byron', 'email' => 'ada.byron@example.com', 'phone' => '0777654321', 'address' => 'New legacy address',
+        ])->assertRedirect(route('admin.section', 'customers'));
+        $this->assertDatabaseHas('user', [
+            'id' => $customer->id, 'name' => 'Ada Byron', 'email' => 'ada.byron@example.com', 'address' => 'New legacy address',
+        ]);
+        $this->assertDatabaseHas('order', ['id' => $orderId, 'user_id' => $customer->id, 'status' => 'shipped']);
+
+        $this->patch(route('admin.customer.status', $customer->id), ['action' => 'deactivate'])
+            ->assertRedirect();
+        $this->assertDatabaseHas('user', ['id' => $customer->id, 'is_active' => false]);
+        $this->patch(route('admin.customer.status', $customer->id), ['action' => 'activate'])->assertRedirect();
+        $this->patch(route('admin.customer.status', $customer->id), ['action' => 'block'])->assertRedirect();
+        $this->assertDatabaseHas('user', ['id' => $customer->id, 'is_blocked' => true]);
+        $this->patch(route('admin.customer.status', $customer->id), ['action' => 'unblock'])->assertRedirect();
+        $this->assertDatabaseHas('user', ['id' => $customer->id, 'is_blocked' => false]);
+    }
+
+    public function test_deactivated_and_blocked_customers_cannot_sign_in_or_use_customer_routes(): void
+    {
+        $inactive = $this->makeUser('inactive@example.com', User::ROLE_CUSTOMER, false);
+        \Illuminate\Support\Facades\DB::table('user')->where('id', $inactive->id)->update(['is_active' => false]);
+        $this->post(route('login.store'), ['email' => $inactive->email, 'password' => 'secret123'])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $blocked = $this->makeUser('blocked@example.com', User::ROLE_CUSTOMER, false);
+        \Illuminate\Support\Facades\DB::table('user')->where('id', $blocked->id)->update(['is_blocked' => true]);
+        $this->post(route('login.store'), ['email' => $blocked->email, 'password' => 'secret123'])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+
+        $this->actingAs($inactive)->get(route('account'))->assertForbidden();
     }
 
     private function makeUser(string $email, int $role, bool $admin): User

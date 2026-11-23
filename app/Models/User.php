@@ -53,6 +53,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'role' => 'integer',
             'is_admin' => 'boolean',
+            'is_active' => 'boolean',
+            'is_blocked' => 'boolean',
         ];
     }
 
@@ -60,7 +62,7 @@ class User extends Authenticatable
     {
         return match ($role) {
             'admin' => (bool) $this->is_admin || (int) $this->role === self::ROLE_ADMIN,
-            'customer' => ! $this->isAdmin(),
+            'customer' => ! $this->isAdmin() && (bool) $this->is_active && ! (bool) $this->is_blocked,
             default => false,
         };
     }

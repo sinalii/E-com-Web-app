@@ -41,6 +41,10 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('admin')->name('admin.')->middleware('role:admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'index'])->name('dashboard');
+        Route::get('/categories/{category}/subcategories', [AdminController::class, 'categorySubcategories'])
+            ->whereNumber('category')->name('categories.subcategories');
+        Route::get('/customers/{customer}', [AdminController::class, 'customerDetails'])->whereNumber('customer')->name('customer.show');
+        Route::patch('/customers/{customer}/status', [AdminController::class, 'updateCustomerStatus'])->whereNumber('customer')->name('customer.status');
         Route::get('/profile', [AdminController::class, 'section'])->defaults('section', 'settings')->name('profile');
         Route::put('/profile', [AdminController::class, 'updateProfile'])->name('profile.update');
         Route::get('/orders/{id}', [AdminController::class, 'orderDetails'])->whereNumber('id')->name('order.show');
