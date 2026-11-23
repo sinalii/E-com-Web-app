@@ -6,8 +6,8 @@
 <div class="site-container shop-page">
     <div class="breadcrumbs"><a href="{{ route('index') }}">Home</a><span>›</span><strong>Shop</strong></div>
     <section class="shop-heading">
-        <div><span class="section-kicker">THE MARKETPLACE</span><h1>{{ $selectedCategory?->name ?? ($searchTerm ? 'Search results' : 'Explore all products') }}</h1>
-            <p>{{ $selectedCategory ? 'Browse '.$selectedCategory->name.' and refine the results.' : ($searchTerm ? 'Showing matches for “'.$searchTerm.'”' : 'Choose a category or use the filters to find what you need.') }}</p>
+        <div><span class="section-kicker">THE MARKETPLACE</span><h1>{{ $selectedCategory?->name ?? (request('sort') === 'newest' ? 'New Arrivals' : ($searchTerm ? 'Search results' : 'Explore all products')) }}</h1>
+            <p>{{ $selectedCategory ? 'Browse '.$selectedCategory->name.' and refine the results.' : (request('sort') === 'newest' ? 'Recently added products, newest first.' : ($searchTerm ? 'Showing matches for “'.$searchTerm.'”' : 'Choose a category or use the filters to find what you need.')) }}</p>
         </div>
         <span class="results-count">{{ $products->flatten()->unique('id')->count() }} products</span>
     </section>
@@ -77,12 +77,21 @@
             @if($products->flatten()->isEmpty())
                 <div class="empty-results"><span>⌕</span><h2>No products found</h2><p>Try changing the filters or browse another category.</p><a class="button-primary" href="{{ route('shop') }}">Browse all products</a></div>
             @else
-                @foreach($productCategories as $category)
+                @php
+                    $displaySections = request('sort') === 'newest'
+                        ? collect([(object) ['category' => null, 'products' => $orderedProducts]])
+                        : $productCategories->map(fn ($category) => (object) [
+                            'category' => $category,
+                            'products' => $products->get($category->id, collect()),
+                        ]);
+                @endphp
+                @foreach($displaySections as $section)
                     @php
-                        $categoryProducts = $products->get($category->id, collect());
+                        $category = $section->category;
+                        $categoryProducts = $section->products;
                     @endphp
                     <section class="shop-category-section">
-                        @if(!$selectedCategory || $selectedCategory->parent_id === null)
+                        @if($category && (!$selectedCategory || $selectedCategory->parent_id === null))
                             @php
                                 $parentCategory = $categoryTree->first(fn ($root) => $root->id === $category->parent_id);
                             @endphp

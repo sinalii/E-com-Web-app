@@ -158,7 +158,7 @@ class ShopController extends Controller
 
         if ($request->query('sort') === 'price_asc') $query->orderByRaw('COALESCE(product_variant.sale_price, product_variant.price) ASC');
         elseif ($request->query('sort') === 'price_desc') $query->orderByRaw('COALESCE(product_variant.sale_price, product_variant.price) DESC');
-        elseif ($request->query('sort') === 'newest') $query->orderByDesc('product.created_at');
+        elseif ($request->query('sort') === 'newest') $query->orderByDesc('product.created_at')->orderByDesc('product.updated_at')->orderByDesc('product.id');
         elseif ($request->query('sort') === 'rating') $query->orderByDesc('review_stats.average_rating');
         elseif ($request->query('sort') === 'orders') $query->orderByDesc('sales_stats.orders_count');
         elseif ($request->query('sort') === 'discount') $query->orderByRaw('(COALESCE(product_variant.price, 0) - COALESCE(product_variant.sale_price, product_variant.price)) DESC');
@@ -176,6 +176,7 @@ class ShopController extends Controller
             'categoryCounts' => $categoryCounts,
             'productCategories' => $productCategories,
             'products' => $products,
+            'orderedProducts' => $items,
             'allProductCount' => $items->unique('id')->count(),
             'selectedCategory' => $selectedCategory,
             'recommendedSubcategories' => $recommendedSubcategories,
