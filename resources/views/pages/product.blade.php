@@ -38,6 +38,14 @@
             <div class="product-detail-meta">
                 <a href="{{ route('shop', ['category' => $product->category_id]) }}">{{ $product->category_name }}</a>
                 @if($product->brand_name)<span>·</span><span>{{ $product->brand_name }}</span>@endif
+                @auth
+                    <form method="post" action="{{ route('wishlist.toggle', $product->id) }}" class="async-action-form product-detail-wishlist-form">
+                        @csrf
+                        <button class="wishlist-button product-detail-wishlist {{ in_array((int) $product->id, $wishlistIds ?? [], true) ? 'is-saved' : '' }}" type="submit" aria-label="{{ in_array((int) $product->id, $wishlistIds ?? [], true) ? 'Remove from' : 'Save to' }} wishlist">{{ in_array((int) $product->id, $wishlistIds ?? [], true) ? '♥' : '♡' }}</button>
+                    </form>
+                @else
+                    <a class="wishlist-button product-detail-wishlist" href="{{ route('login') }}" aria-label="Sign in to save {{ $product->name }}">♡</a>
+                @endauth
             </div>
             <h1>{{ $product->name }}</h1>
             <div class="product-detail-rating">
@@ -86,7 +94,7 @@
                         <label for="product-quantity">Quantity</label>
                         <input id="product-quantity" type="number" name="quantity" value="1" min="1" max="99" inputmode="numeric">
                         @auth
-                            <button class="button-primary product-add-button" type="submit" {{ !$product->variants->contains(fn ($variant) => $variant->stock_quantity === null || $variant->stock_quantity > 0) ? 'disabled' : '' }}>Add to cart</button>
+                            <button class="button-primary product-add-button" type="submit" {{ !$product->variants->contains(fn ($variant) => $variant->stock_quantity === null || $variant->stock_quantity > 0) ? 'disabled' : '' }}>Add to cart <span aria-hidden="true">+</span></button>
                         @else
                             <a class="button-primary product-add-button" href="{{ route('login') }}">Sign in to buy</a>
                         @endauth
