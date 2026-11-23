@@ -33,6 +33,7 @@
             <form method="post" action="{{ route('admin.profile.update') }}" class="admin-form">@csrf @method('PUT')
                 <label>Name<input name="name" value="{{ old('name', auth()->user()->name) }}" required maxlength="255"></label>
                 <label>Email<input type="email" name="email" value="{{ old('email', auth()->user()->email) }}" required maxlength="255" autocomplete="email"></label>
+                <label>Phone number<input type="tel" name="phone" value="{{ old('phone', auth()->user()->phone) }}" required maxlength="20" autocomplete="tel"></label>
                 <label>New password<input type="password" name="password" autocomplete="new-password"></label>
                 <label>Confirm new password<input type="password" name="password_confirmation" autocomplete="new-password"></label>
                 @if($errors->any())<div class="form-alert">{{ $errors->first() }}</div>@endif

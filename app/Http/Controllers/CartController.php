@@ -120,6 +120,8 @@ class CartController extends Controller
         if ($items->isEmpty()) {
             return redirect()->route('cart')->with('error', 'Add an item to your cart before checking out.');
         }
+        $defaultAddress = DB::table('address')->where('user_id', $request->user()->id)
+            ->orderByDesc('is_default')->orderByDesc('id')->first();
 
         return view('pages.checkout', [
             'categories' => $this->categories(),
@@ -127,6 +129,7 @@ class CartController extends Controller
             'subtotal' => $items->sum(fn ($item) => $item->unit_price * $item->quantity),
             'cartCount' => $items->sum('quantity'),
             'user' => $request->user(),
+            'defaultAddress' => $defaultAddress,
         ]);
     }
 
@@ -138,8 +141,11 @@ class CartController extends Controller
             'address_line1' => ['required', 'string', 'max:255'],
             'address_line2' => ['nullable', 'string', 'max:255'],
             'city' => ['required', 'string', 'max:100'],
+            'state' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'country' => ['required', 'string', 'max:100'],
+            'additional_phone' => ['nullable', 'string', 'max:20'],
+            'delivery_instructions' => ['nullable', 'string', 'max:2000'],
             'payment_method' => ['required', Rule::in(['cash_on_delivery'])],
         ]);
 
@@ -157,16 +163,26 @@ class CartController extends Controller
             }
 
             $subtotal = $items->sum(fn ($item) => $item->unit_price * $item->quantity);
+            DB::table('user')->where('id', $request->user()->id)->update([
+                'name' => $data['contact_name'],
+                'phone' => $data['phone'],
+                'address' => $data['address_line1'],
+                'updated_at' => now(),
+            ]);
+            DB::table('address')->where('user_id', $request->user()->id)->update(['is_default' => false]);
             $addressId = DB::table('address')->insertGetId([
                 'user_id' => $request->user()->id,
                 'contact_name' => $data['contact_name'],
                 'phone' => $data['phone'],
+                'additional_phone' => $data['additional_phone'] ?? null,
                 'address_line1' => $data['address_line1'],
                 'address_line2' => $data['address_line2'] ?? null,
                 'city' => $data['city'],
+                'state' => $data['state'] ?? null,
                 'postal_code' => $data['postal_code'] ?? null,
                 'country' => $data['country'],
-                'is_default' => false,
+                'delivery_instructions' => $data['delivery_instructions'] ?? null,
+                'is_default' => true,
             ]);
 
             $orderId = DB::table('order')->insertGetId([
