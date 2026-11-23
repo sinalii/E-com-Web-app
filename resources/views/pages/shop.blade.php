@@ -35,10 +35,8 @@
             <form class="sidebar-section filter-form" action="{{ route('shop') }}" method="get">
                 @if(request('category'))<input type="hidden" name="category" value="{{ request('category') }}">@endif
                 @if(request('q'))<input type="hidden" name="q" value="{{ request('q') }}">@endif
-                <div class="filter-heading"><div><span class="section-kicker">REFINE YOUR SEARCH</span><h2>Filters</h2></div>@if(request()->hasAny(['min_price','max_price','min_rating','in_stock','filters']))<a href="{{ route('shop', array_filter(['category' => request('category'), 'q' => request('q')])) }}">Clear all</a>@endif</div>
-                @if(!$selectedCategory)
-                    <p class="filter-hint">Choose a category to see relevant product filters.</p>
-                @elseif(empty($facets))
+                <div class="filter-heading"><div><span class="section-kicker">REFINE YOUR SEARCH</span><h2>Filters</h2></div>@if(request()->hasAny(['min_price','max_price','min_rating','in_stock','deal','filters']))<a href="{{ route('shop', array_filter(['category' => request('category'), 'q' => request('q')])) }}">Clear all</a>@endif</div>
+                @if(empty($facets))
                     <p class="filter-hint">Filters will appear when this category has products with matching details.</p>
                 @else
                     @foreach($facets as $facet)
@@ -50,6 +48,8 @@
                                 @foreach($facet->values as $rating)<label class="facet-option"><input type="radio" name="min_rating" value="{{ $rating->value }}" {{ (string) request('min_rating') === (string) $rating->value ? 'checked' : '' }}><span>{{ $rating->value }} stars &amp; up</span><small>{{ $rating->count }}</small></label>@endforeach
                             @elseif($facet->input_type === 'availability')
                                 @foreach($facet->values as $option)<label class="facet-option"><input type="checkbox" name="in_stock" value="1" {{ request()->boolean('in_stock') ? 'checked' : '' }}><span>{{ $option->value }}</span><small>{{ $option->count }}</small></label>@endforeach
+                            @elseif($facet->input_type === 'deal')
+                                @foreach($facet->values as $option)<label class="facet-option"><input type="checkbox" name="deal" value="1" {{ request()->boolean('deal') ? 'checked' : '' }}><span>{{ $option->value }}</span><small>{{ $option->count }}</small></label>@endforeach
                             @else
                                 @forelse($facet->values as $option)
                                     <label class="facet-option"><input type="checkbox" name="filters[{{ $facet->slug }}][]" value="{{ $option->value }}" {{ in_array($option->value, (array) request('filters.'.$facet->slug, []), true) ? 'checked' : '' }}><span>{{ $option->value }}</span><small>{{ $option->count }}</small></label>
@@ -68,6 +68,7 @@
             <form class="shop-toolbar" action="{{ route('shop') }}" method="get">
                 @if(request('category'))<input type="hidden" name="category" value="{{ request('category') }}">@endif
                 @if(request('q'))<input type="hidden" name="q" value="{{ request('q') }}">@endif
+                @if(request()->boolean('deal'))<input type="hidden" name="deal" value="1">@endif
                 @foreach(['min_price','max_price','min_rating','in_stock'] as $key)@if(request()->has($key))<input type="hidden" name="{{ $key }}" value="{{ request($key) }}">@endif @endforeach
                 @foreach((array) request('filters', []) as $key => $values)@foreach((array) $values as $value)<input type="hidden" name="filters[{{ $key }}][]" value="{{ $value }}">@endforeach @endforeach
                 <span>Showing <strong>{{ $products->flatten()->unique('id')->count() }}</strong> products</span>
