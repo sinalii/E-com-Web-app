@@ -27,6 +27,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
     Route::middleware('role:customer')->group(function () {
         Route::get('/account', [AccountController::class, 'index'])->name('account');
+        Route::put('/account/profile', [AccountController::class, 'updateProfile'])->name('account.profile.update');
         Route::get('/wishlist', [WishlistController::class, 'index'])->name('wishlist');
         Route::post('/wishlist/{product}', [WishlistController::class, 'toggle'])->whereNumber('product')->name('wishlist.toggle');
         Route::post('/products/{product}/reviews', [ProductReviewController::class, 'store'])->name('products.reviews.store');

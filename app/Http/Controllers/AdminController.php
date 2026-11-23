@@ -186,10 +186,12 @@ class AdminController extends Controller
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email:rfc', 'max:255', Rule::unique('user', 'email')->ignore($admin->id)],
+            'phone' => ['required', 'string', 'max:20', Rule::unique('user', 'phone')->ignore($admin->id)],
             'password' => ['nullable', 'confirmed', 'min:8', 'regex:/[A-Za-z]/', 'regex:/[0-9]/'],
         ]);
         $admin->name = $data['name'];
         $admin->email = Str::lower($data['email']);
+        $admin->phone = $data['phone'];
         if (! empty($data['password'])) $admin->password = Hash::make($data['password']);
         $admin->save();
 

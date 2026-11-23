@@ -9,6 +9,7 @@
     <form method="post" action="{{ route('register.store') }}">@csrf
         <label for="name">Full name</label><input id="name" name="name" type="text" value="{{ old('name') }}" autocomplete="name" required>
         <label for="email">Email address</label><input id="email" name="email" type="email" value="{{ old('email') }}" autocomplete="email" required>
+        <label for="phone">Phone number</label><input id="phone" name="phone" type="tel" value="{{ old('phone') }}" autocomplete="tel" required>
         <label for="password">Password</label><input id="password" name="password" type="password" autocomplete="new-password" required>
         <label for="password_confirmation">Confirm password</label><input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" required>
         <button class="button-primary" type="submit">Create account <span>→</span></button>
