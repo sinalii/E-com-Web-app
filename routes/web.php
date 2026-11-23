@@ -48,7 +48,13 @@ Route::middleware('auth')->group(function () {
         Route::patch('/customers/{customer}/status', [AdminController::class, 'updateCustomerStatus'])->whereNumber('customer')->name('customer.status');
         Route::get('/profile', [AdminController::class, 'section'])->defaults('section', 'settings')->name('profile');
         Route::put('/profile', [AdminController::class, 'updateProfile'])->name('profile.update');
+        Route::put('/profile/store', [AdminController::class, 'updateStoreSettings'])->name('profile.store.update');
+        Route::put('/profile/password', [AdminController::class, 'updatePassword'])->name('profile.password.update');
+        Route::put('/profile/notifications', [AdminController::class, 'updateNotificationPreferences'])->name('profile.notifications.update');
+        Route::delete('/profile/sessions', [AdminController::class, 'logoutOtherSessions'])->name('profile.sessions.destroy');
         Route::get('/orders/{id}', [AdminController::class, 'orderDetails'])->whereNumber('id')->name('order.show');
+        Route::get('/payments/{id}', [AdminController::class, 'paymentDetails'])->whereNumber('id')->name('payment.show');
+        Route::patch('/payments/{id}/confirm-cod-collected', [AdminController::class, 'confirmCodCollected'])->whereNumber('id')->name('payment.confirm-cod');
         Route::get('/reports/download', [AdminController::class, 'downloadSalesReport'])->name('reports.download');
         Route::get('/{section}', [AdminController::class, 'section'])->name('section');
         Route::post('/{section}', [AdminController::class, 'store'])->name('resource.store');

@@ -29,17 +29,7 @@
             </section>
         </div>
     @elseif($section === 'settings')
-        <section class="account-card admin-form-card"><h2>Administrator profile</h2><p class="admin-muted">Update your administrator name, email, or password. Leave the password blank to keep it unchanged.</p>
-            <form method="post" action="{{ route('admin.profile.update') }}" class="admin-form">@csrf @method('PUT')
-                <label>Name<input name="name" value="{{ old('name', auth()->user()->name) }}" required maxlength="255"></label>
-                <label>Email<input type="email" name="email" value="{{ old('email', auth()->user()->email) }}" required maxlength="255" autocomplete="email"></label>
-                <label>Phone number<input type="tel" name="phone" value="{{ old('phone', auth()->user()->phone) }}" required maxlength="20" autocomplete="tel"></label>
-                <label>New password<input type="password" name="password" autocomplete="new-password"></label>
-                <label>Confirm new password<input type="password" name="password_confirmation" autocomplete="new-password"></label>
-                @if($errors->any())<div class="form-alert">{{ $errors->first() }}</div>@endif
-                <button class="button-primary" type="submit">Save settings</button>
-            </form>
-        </section>
+        @include('pages.admin-settings')
     @elseif($section === 'reports')
         @include('pages.admin-reports')
     @else
@@ -86,7 +76,27 @@
                 @if($section === 'coupons')<p class="admin-muted">Coupons are stored in the existing coupon table. Customer checkout does not currently apply coupons.</p>@endif
                 <form method="post" enctype="multipart/form-data" action="{{ $editing ? route('admin.resource.update', [$section, $editing->id]) : route('admin.resource.store', $section) }}" class="admin-form">
                     @csrf @if($editing)@method('PUT')@endif
-                    @if($section === 'products' && $editing?->image_url)<div class="admin-image-preview"><img src="{{ $editing->image_url }}" alt="Current image for {{ $editing->name }}"><span>Current primary image</span></div>@endif
+                    @if($section === 'products')
+                        @php($primaryProductImageId = $productImages->firstWhere('is_primary', true)->id ?? $productImages->first()?->id)
+                        <div class="admin-product-gallery-manager" data-product-gallery-manager>
+                            <div class="admin-product-gallery-heading"><div><strong>Product images</strong><small>Upload up to 12 images · JPG, JPEG, PNG, WEBP · max 5 MB each</small></div><span>Select a primary image and reorder thumbnails below.</span></div>
+                            <label class="admin-product-image-upload">Choose images<input type="file" name="images[]" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" multiple data-product-image-input><small>Choose multiple files at once. Existing images stay saved unless you mark them for removal.</small></label>
+                            <label class="admin-product-image-upload">Or add an image URL<input type="url" name="image_url" value="{{ old('image_url') }}" maxlength="2048" placeholder="https://example.com/product-image.jpg"><small>The image URL is saved as another image in this product gallery.</small></label>
+                            <div class="admin-product-image-grid" data-product-image-grid>
+                                @foreach($productImages as $image)
+                                    @php($imageSource = $image->image_url ?: '')
+                                    @if($imageSource && !\Illuminate\Support\Str::startsWith($imageSource,['http://','https://','/'])) @php($imageSource = asset('storage/'.$imageSource)) @endif
+                                    <article class="admin-product-image-item" data-image-card data-image-reference="existing:{{ $image->id }}">
+                                        @if($imageSource)<img src="{{ $imageSource }}" alt="Saved product image" loading="lazy">@else<div class="admin-product-image-empty">Image unavailable</div>@endif
+                                        <input type="hidden" name="image_order[]" value="existing:{{ $image->id }}" data-image-order>
+                                        <label class="admin-image-primary"><input type="radio" name="primary_image_reference" value="existing:{{ $image->id }}" {{ (int)$primaryProductImageId === (int)$image->id ? 'checked' : '' }}> Primary image</label>
+                                        <div class="admin-product-image-controls"><button type="button" data-image-move="up" aria-label="Move image earlier">↑</button><button type="button" data-image-move="down" aria-label="Move image later">↓</button><label><input type="checkbox" name="remove_image_ids[]" value="{{ $image->id }}" data-remove-existing> Remove</label></div>
+                                    </article>
+                                @endforeach
+                            </div>
+                            <div data-discarded-image-inputs></div>
+                        </div>
+                    @endif
                     @foreach($fields as $field)
                         @php($value = old($field['name'], $editing->{$field['name']} ?? ($field['name'] === 'is_active' ? true : '')))
                         @if(($field['type'] ?? '') === 'checkbox')
@@ -167,9 +177,9 @@
                     <div class="admin-table-scroll"><table class="admin-table"><thead><tr><th>Code</th><th>Discount</th><th>Minimum</th><th>Active</th><th>Actions</th></tr></thead><tbody>@forelse($records as $row)<tr><td>{{ $row->code }}</td><td>{{ $row->discount_type === 'percentage' ? $row->discount_value.'%' : 'Rs. '.number_format((float) $row->discount_value, 2) }}</td><td>Rs. {{ number_format((float) $row->minimum_amount, 2) }}</td><td>{{ $row->is_active ? 'Yes' : 'No' }}</td><td>@include('pages.admin-actions', ['row' => $row, 'section' => $section, 'editable' => true, 'deletable' => true])</td></tr>@empty<tr><td colspan="5">No coupons found.</td></tr>@endforelse</tbody></table></div>
                 @endif
             @elseif($section === 'orders')
-                <div class="admin-table-scroll"><table class="admin-table"><thead><tr><th>Order</th><th>Customer</th><th>Placed</th><th>Total</th><th>Status</th><th>Update status</th></tr></thead><tbody>@forelse($records as $row)<tr><td><a class="text-link" href="{{ route('admin.order.show', $row->id) }}">#{{ $row->id }} · View</a></td><td>{{ $row->customer_name ?? 'Guest' }}</td><td>{{ $row->created_at ? \Illuminate\Support\Carbon::parse($row->created_at)->format('M j, Y') : '—' }}</td><td>Rs. {{ number_format((float) $row->total_amount, 2) }}</td><td>{{ ucfirst($row->status ?? 'pending') }}</td><td><form method="post" action="{{ route('admin.resource.update', [$section, $row->id]) }}" class="admin-inline-form">@csrf @method('PUT')<select name="status">@if(!in_array($row->status, ['pending', 'processing', 'shipped', 'completed', 'cancelled'], true))<option value="{{ $row->status }}" selected>{{ ucfirst($row->status) }}</option>@endif @foreach(['pending', 'processing', 'shipped', 'completed', 'cancelled'] as $status)<option value="{{ $status }}" {{ ($row->status ?? 'pending') === $status ? 'selected' : '' }}>{{ ucfirst($status) }}</option>@endforeach</select><button class="button-secondary" type="submit">Update</button></form></td></tr>@empty<tr><td colspan="6">No orders found.</td></tr>@endforelse</tbody></table></div>{{ $records->links() }}
+                @include('pages.admin-orders')
             @elseif($section === 'payments')
-                <div class="admin-table-scroll"><table class="admin-table"><thead><tr><th>Payment / Order</th><th>Customer</th><th>Method</th><th>Amount</th><th>Status</th><th>Update status</th></tr></thead><tbody>@forelse($records as $row)<tr><td>#{{ $row->id }} / Order #{{ $row->order_id }}</td><td>{{ $row->customer_name ?? 'Guest' }}</td><td>{{ $row->method ?? '—' }}</td><td>Rs. {{ number_format((float) $row->amount, 2) }}</td><td>{{ ucfirst($row->status ?? 'pending') }}</td><td><form method="post" action="{{ route('admin.resource.update', [$section, $row->id]) }}" class="admin-inline-form">@csrf @method('PUT')<select name="status"><option>pending</option><option>paid</option><option>failed</option><option>refunded</option></select><button class="button-secondary" type="submit">Update</button></form></td></tr>@empty<tr><td colspan="6">No payments found.</td></tr>@endforelse</tbody></table></div>{{ $records->links() }}
+                @include('pages.admin-payments')
             @elseif($section === 'inventory')
                 <div class="admin-table-scroll"><table class="admin-table"><thead><tr><th>Product</th><th>Variant SKU</th><th>Price</th><th>Stock</th><th>Update stock</th></tr></thead><tbody>@forelse($records as $row)<tr><td>{{ $row->name }}</td><td>{{ $row->sku }}</td><td>Rs. {{ number_format((float) $row->price, 2) }}</td><td>{{ $row->stock_quantity ?? '—' }}</td><td><form method="post" action="{{ route('admin.resource.update', [$section, $row->id]) }}" class="admin-inline-form">@csrf @method('PUT')<input type="number" min="0" name="stock_quantity" value="{{ $row->stock_quantity }}" required><button class="button-secondary" type="submit">Save</button></form></td></tr>@empty<tr><td colspan="5">No inventory found.</td></tr>@endforelse</tbody></table></div>
             @elseif($section === 'reviews')
@@ -233,6 +243,85 @@
                 if (selectedMain) loadSubcategories(selectedMain, subcategory.dataset.selectedSubcategory);
                 else resetSubcategory('Select a main category first');
             })();
+        </script>
+    @endpush
+@endif
+
+@if($section === 'products')
+    @push('scripts')
+        <script>
+        (() => {
+            const manager = document.querySelector('[data-product-gallery-manager]');
+            if (!manager) return;
+            const grid = manager.querySelector('[data-product-image-grid]');
+            const picker = manager.querySelector('[data-product-image-input]');
+            const discardedInputs = manager.querySelector('[data-discarded-image-inputs]');
+            const getCards = () => [...grid.querySelectorAll('[data-image-card]')];
+            const activeCards = () => getCards().filter(card => !card.classList.contains('is-remove-pending'));
+            const sync = () => {
+                getCards().forEach(card => {
+                    const order = card.querySelector('[data-image-order]');
+                    if (order) order.disabled = card.classList.contains('is-remove-pending');
+                });
+                const active = activeCards();
+                if (!active.some(card => card.querySelector('input[type="radio"]:checked'))) {
+                    grid.querySelectorAll('input[type="radio"]').forEach(radio => radio.checked = false);
+                    const firstRadio = active[0]?.querySelector('input[type="radio"]');
+                    if (firstRadio) firstRadio.checked = true;
+                }
+            };
+            const addMoveButton = (container, direction, label) => {
+                const button = document.createElement('button'); button.type = 'button'; button.dataset.imageMove = direction;
+                button.setAttribute('aria-label', label); button.textContent = direction === 'up' ? '↑' : '↓'; container.append(button);
+            };
+            const makeNewCard = (file, index) => {
+                const card = document.createElement('article'); card.className = 'admin-product-image-item'; card.dataset.imageCard = ''; card.dataset.imageReference = `new:${index}`; card.dataset.newImageIndex = String(index);
+                const image = document.createElement('img'); image.src = URL.createObjectURL(file); image.alt = 'Selected product image preview'; card.append(image);
+                const order = document.createElement('input'); order.type = 'hidden'; order.name = 'image_order[]'; order.value = `new:${index}`; order.dataset.imageOrder = ''; card.append(order);
+                const primaryLabel = document.createElement('label'); primaryLabel.className = 'admin-image-primary';
+                const primary = document.createElement('input'); primary.type = 'radio'; primary.name = 'primary_image_reference'; primary.value = `new:${index}`; primaryLabel.append(primary, document.createTextNode(' Primary image')); card.append(primaryLabel);
+                const controls = document.createElement('div'); controls.className = 'admin-product-image-controls';
+                addMoveButton(controls,'up','Move image earlier'); addMoveButton(controls,'down','Move image later');
+                const remove = document.createElement('button'); remove.type = 'button'; remove.dataset.removeNewImage = ''; remove.textContent = 'Remove'; controls.append(remove); card.append(controls);
+                return card;
+            };
+            picker.addEventListener('change', () => {
+                getCards().filter(card => card.dataset.newImageIndex !== undefined).forEach(card => card.remove());
+                discardedInputs.replaceChildren();
+                const files = [...picker.files];
+                const activeExisting = activeCards().length;
+                if (activeExisting + files.length > 12) {
+                    window.alert('A product can have up to 12 images. Remove an existing image or select fewer files.');
+                    picker.value = ''; sync(); return;
+                }
+                files.forEach((file,index) => grid.append(makeNewCard(file,index)));
+                sync();
+            });
+            grid.addEventListener('change', event => {
+                if (event.target.matches('[data-remove-existing]')) {
+                    const card = event.target.closest('[data-image-card]');
+                    card.classList.toggle('is-remove-pending', event.target.checked); sync();
+                }
+                if (event.target.matches('input[type="radio"]')) sync();
+            });
+            grid.addEventListener('click', event => {
+                const move = event.target.closest('[data-image-move]');
+                if (move) {
+                    const card = move.closest('[data-image-card]');
+                    if (move.dataset.imageMove === 'up' && card.previousElementSibling) grid.insertBefore(card,card.previousElementSibling);
+                    if (move.dataset.imageMove === 'down' && card.nextElementSibling) grid.insertBefore(card.nextElementSibling,card);
+                    sync(); return;
+                }
+                const removeNew = event.target.closest('[data-remove-new-image]');
+                if (removeNew) {
+                    const card = removeNew.closest('[data-image-card]');
+                    const index = card.dataset.newImageIndex;
+                    const input = document.createElement('input'); input.type='hidden'; input.name='discarded_image_indexes[]'; input.value=index; discardedInputs.append(input);
+                    card.remove(); sync();
+                }
+            });
+            sync();
+        })();
         </script>
     @endpush
 @endif
