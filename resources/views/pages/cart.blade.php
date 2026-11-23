@@ -15,6 +15,8 @@
             @foreach($cartItems as $item)
                 @php
                     $image = $item->image_url ?: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=400&q=80';
+                    if (\Illuminate\Support\Str::startsWith($image, 'storage/')) $image = '/'.$image;
+                    elseif (\Illuminate\Support\Str::startsWith($image, ['products/', 'categories/'])) $image = '/storage/'.$image;
                 @endphp
                 <article class="cart-line-item"><img src="{{ $image }}" alt="{{ $item->name }}"><div class="cart-line-info"><h2>{{ $item->name }}</h2><p>In stock: {{ $item->stock_quantity ?? 'Available' }}</p><strong>Rs. {{ number_format((float) $item->unit_price, 2) }}</strong></div>
                     <form class="quantity-form" method="post" action="{{ route('cart.update', $item->cart_item_id) }}">@csrf @method('PATCH')<label for="quantity-{{ $item->cart_item_id }}">Qty</label><input id="quantity-{{ $item->cart_item_id }}" type="number" name="quantity" min="1" max="99" value="{{ $item->quantity }}"><button type="submit">Update</button></form>

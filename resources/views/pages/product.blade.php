@@ -4,9 +4,18 @@
 
 @section('content')
 @php
+<<<<<<< HEAD
     $images = $product->images->filter(fn ($image) => filled($image->image_url))->values();
     $mainImage = $images->first()?->image_url;
     if ($mainImage && !\Illuminate\Support\Str::startsWith($mainImage, ['http://', 'https://', '/'])) $mainImage = asset('furni/images/'.$mainImage);
+=======
+    $fallbackImage = 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=1000&q=85';
+    $images = $product->images->isNotEmpty() ? $product->images : collect([(object) ['image_url' => $fallbackImage]]);
+    $mainImage = $images->first()->image_url ?: $fallbackImage;
+    if (\Illuminate\Support\Str::startsWith($mainImage, 'storage/')) $mainImage = '/'.$mainImage;
+    elseif (\Illuminate\Support\Str::startsWith($mainImage, ['products/', 'categories/'])) $mainImage = '/storage/'.$mainImage;
+    if (!\Illuminate\Support\Str::startsWith($mainImage, ['http://', 'https://', '/'])) $mainImage = asset('furni/images/'.$mainImage);
+>>>>>>> 8c9b5d5d06c7dc355c065249296a4b180f79fd2b
     $defaultVariant = $product->variants->first(fn ($variant) => $variant->stock_quantity === null || $variant->stock_quantity > 0) ?: $product->variants->first();
     $defaultPrice = $defaultVariant ? ($defaultVariant->sale_price ?: $defaultVariant->price) : null;
     $roundedRating = $product->rating ? max(0, min(5, (int) round((float) $product->rating))) : 0;
@@ -27,7 +36,13 @@
                 <div class="product-gallery-thumbnails" aria-label="Product images">
                     @foreach($images as $image)
                         @php
+<<<<<<< HEAD
                             $thumbnail = $image->image_url;
+=======
+                            $thumbnail = $image->image_url ?: $fallbackImage;
+                            if (\Illuminate\Support\Str::startsWith($thumbnail, 'storage/')) $thumbnail = '/'.$thumbnail;
+                            elseif (\Illuminate\Support\Str::startsWith($thumbnail, ['products/', 'categories/'])) $thumbnail = '/storage/'.$thumbnail;
+>>>>>>> 8c9b5d5d06c7dc355c065249296a4b180f79fd2b
                             if (!\Illuminate\Support\Str::startsWith($thumbnail, ['http://', 'https://', '/'])) $thumbnail = asset('furni/images/'.$thumbnail);
                         @endphp
                         <button class="{{ $loop->first ? 'is-selected' : '' }}" type="button" data-product-thumbnail="{{ $thumbnail }}" aria-label="View product image {{ $loop->iteration }}" aria-pressed="{{ $loop->first ? 'true' : 'false' }}"><img src="{{ $thumbnail }}" alt="" loading="lazy"></button>

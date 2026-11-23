@@ -47,9 +47,26 @@
     @unless(request()->routeIs('admin.*'))
     <nav class="category-bar" aria-label="Main navigation"><div class="site-container category-bar-inner">
         <button class="all-categories" type="button" aria-controls="category-drawer" aria-expanded="false" data-category-drawer-open><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>All Categories</button>
-        <div class="nav-categories">@foreach(($categories ?? collect())->take(5) as $category)<a href="{{ route('shop', ['category' => $category->id]) }}">{{ $category->name }}</a>@endforeach</div>
+        <div class="nav-categories">
+            @foreach(($categories ?? collect())->take(5) as $category)
+                @php
+                    $requestedCategory = (string) request()->query('category', '');
+                    $categoryIsActive = $requestedCategory !== '' && (
+                        $requestedCategory === (string) $category->id
+                        || $requestedCategory === (string) $category->slug
+                        || $category->children->contains(fn ($child) => $requestedCategory === (string) $child->id || $requestedCategory === (string) $child->slug)
+                    );
+                @endphp
+                <a class="{{ $categoryIsActive ? 'is-active' : '' }}" href="{{ route('shop', ['category' => $category->id]) }}" @if($categoryIsActive) aria-current="page" @endif>{{ $category->name }}</a>
+            @endforeach
+        </div>
         @unless(auth()->check() && auth()->user()->isAdmin() && request()->routeIs('admin.*'))
-        <div class="nav-promos"><a href="{{ route('shop') }}?deal=1">Today's Deals</a><a href="{{ route('shop') }}">Best Sellers</a><a href="{{ route('shop') }}">New Arrivals</a><a href="{{ route('contact') }}">Customer Support</a></div>
+        <div class="nav-promos">
+            <a class="{{ request()->boolean('deal') ? 'is-active' : '' }}" href="{{ route('shop', ['deal' => 1]) }}" @if(request()->boolean('deal')) aria-current="page" @endif>Today's Deals</a>
+            <a class="{{ request('sort') === 'orders' ? 'is-active' : '' }}" href="{{ route('shop', ['sort' => 'orders']) }}" @if(request('sort') === 'orders') aria-current="page" @endif>Best Sellers</a>
+            <a class="{{ request('sort') === 'newest' ? 'is-active' : '' }}" href="{{ route('shop', ['sort' => 'newest']) }}" @if(request('sort') === 'newest') aria-current="page" @endif>New Arrivals</a>
+            <a class="{{ request()->routeIs('contact') ? 'is-active' : '' }}" href="{{ route('contact') }}" @if(request()->routeIs('contact')) aria-current="page" @endif>Customer Support</a>
+        </div>
         @endunless
     </div></nav>
     @endunless
@@ -126,7 +143,7 @@
     <section class="newsletter"><div class="site-container newsletter-inner"><div><span class="newsletter-kicker">THE MARKETLY EDIT</span><h2>Good finds, delivered.</h2><p>Get first access to fresh picks and offers worth opening.</p></div><form action="{{ route('newsletter.subscribe') }}" method="post">@csrf<label class="sr-only" for="newsletter-email">Email address</label><input id="newsletter-email" name="email" type="email" placeholder="Your email address" required><button type="submit">Join the list <span>→</span></button></form></div></section>
     <footer class="site-footer"><div class="site-container footer-grid">
         <div class="footer-brand"><a class="brand" href="{{ route('index') }}"><span class="brand-mark">m</span>marketly<span class="brand-dot">.</span></a><p>Discover everyday essentials and unexpected favorites from a marketplace made for you.</p><div class="social-links"><a href="#facebook" aria-label="Facebook">f</a><a href="#instagram" aria-label="Instagram">ig</a><a href="#youtube" aria-label="YouTube">â–¶</a></div></div>
-        <div><h3>Shop</h3><a href="{{ route('shop') }}">All products</a><a href="{{ route('shop') }}">Today's deals</a><a href="{{ route('shop') }}">Best sellers</a><a href="{{ route('shop') }}">New arrivals</a></div>
+        <div><h3>Shop</h3><a href="{{ route('shop') }}">All products</a><a href="{{ route('shop') }}">Today's deals</a><a href="{{ route('shop', ['sort' => 'orders']) }}">Best sellers</a><a href="{{ route('shop', ['sort' => 'newest']) }}">New arrivals</a></div>
         <div><h3>Customer care</h3><a href="{{ route('contact') }}">Contact us</a><a href="{{ route('contact') }}">Shipping information</a><a href="{{ route('contact') }}">Returns &amp; refunds</a><a href="{{ route('contact') }}">FAQs</a></div>
         <div><h3>About Marketly</h3><a href="{{ route('about') }}">Our story</a><a href="{{ route('services') }}">Why shop with us</a><a href="{{ route('contact') }}">Contact the team</a></div>
     </div><div class="site-container footer-bottom"><span>Â© {{ date('Y') }} Marketly Marketplace. All rights reserved.</span><div><a href="#privacy">Privacy</a><a href="#terms">Terms</a><span>Secure shopping&nbsp; Â· &nbsp;ðŸ”’</span></div></div></footer>

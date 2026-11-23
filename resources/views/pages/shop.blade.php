@@ -6,8 +6,8 @@
 <div class="site-container shop-page">
     <div class="breadcrumbs"><a href="{{ route('index') }}">Home</a><span>›</span><strong>Shop</strong></div>
     <section class="shop-heading">
-        <div><span class="section-kicker">THE MARKETPLACE</span><h1>{{ $selectedCategory?->name ?? ($searchTerm ? 'Search results' : 'Explore all products') }}</h1>
-            <p>{{ $selectedCategory ? 'Browse '.$selectedCategory->name.' and refine the results.' : ($searchTerm ? 'Showing matches for “'.$searchTerm.'”' : 'Choose a category or use the filters to find what you need.') }}</p>
+        <div><span class="section-kicker">THE MARKETPLACE</span><h1>{{ $selectedCategory?->name ?? (request('sort') === 'newest' ? 'New Arrivals' : ($searchTerm ? 'Search results' : 'Explore all products')) }}</h1>
+            <p>{{ $selectedCategory ? 'Browse '.$selectedCategory->name.' and refine the results.' : (request('sort') === 'newest' ? 'Recently added products, newest first.' : ($searchTerm ? 'Showing matches for “'.$searchTerm.'”' : 'Choose a category or use the filters to find what you need.')) }}</p>
         </div>
         <span class="results-count">{{ $products->flatten()->unique('id')->count() }} products</span>
     </section>
@@ -36,8 +36,8 @@
                 @if(request('category'))<input type="hidden" name="category" value="{{ request('category') }}">@endif
                 @if(request('q'))<input type="hidden" name="q" value="{{ request('q') }}">@endif
                 <div class="filter-heading"><div><span class="section-kicker">REFINE YOUR SEARCH</span><h2>Filters</h2></div>@if(request()->hasAny(['min_price','max_price','min_rating','in_stock','filters']))<a href="{{ route('shop', array_filter(['category' => request('category'), 'q' => request('q')])) }}">Clear all</a>@endif</div>
-                @if(!$selectedCategory || $selectedCategory->parent_id === null)
-                    <p class="filter-hint">Choose a subcategory to see its product filters.</p>
+                @if(!$selectedCategory)
+                    <p class="filter-hint">Choose a category to see relevant product filters.</p>
                 @elseif(empty($facets))
                     <p class="filter-hint">Filters will appear when this category has products with matching details.</p>
                 @else
@@ -77,12 +77,21 @@
             @if($products->flatten()->isEmpty())
                 <div class="empty-results"><span>⌕</span><h2>No products found</h2><p>Try changing the filters or browse another category.</p><a class="button-primary" href="{{ route('shop') }}">Browse all products</a></div>
             @else
-                @foreach($productCategories as $category)
+                @php
+                    $displaySections = request('sort') === 'newest'
+                        ? collect([(object) ['category' => null, 'products' => $orderedProducts]])
+                        : $productCategories->map(fn ($category) => (object) [
+                            'category' => $category,
+                            'products' => $products->get($category->id, collect()),
+                        ]);
+                @endphp
+                @foreach($displaySections as $section)
                     @php
-                        $categoryProducts = $products->get($category->id, collect());
+                        $category = $section->category;
+                        $categoryProducts = $section->products;
                     @endphp
                     <section class="shop-category-section">
-                        @if(!$selectedCategory || $selectedCategory->parent_id === null)
+                        @if($category && (!$selectedCategory || $selectedCategory->parent_id === null))
                             @php
                                 $parentCategory = $categoryTree->first(fn ($root) => $root->id === $category->parent_id);
                             @endphp
@@ -93,7 +102,9 @@
                                 @php
                                     $price = $product->sale_price ?: $product->price;
                                     $image = $product->image_url ?: 'https://images.unsplash.com/photo-1498049794561-7780e7231661?auto=format&fit=crop&w=800&q=80';
-                                    if (!\Illuminate\Support\Str::startsWith($image, ['http://', 'https://', '/'])) $image = asset('furni/images/' . $image);
+                                    if (\Illuminate\Support\Str::startsWith($image, 'storage/')) $image = '/'.$image;
+                                    elseif (\Illuminate\Support\Str::startsWith($image, ['products/', 'categories/'])) $image = '/storage/'.$image;
+                                    elseif (!\Illuminate\Support\Str::startsWith($image, ['http://', 'https://', '/'])) $image = asset('furni/images/' . $image);
                                 @endphp
                                 <article class="market-product-card">
                                     <div class="product-image-wrap"><a class="product-image-link" href="{{ route('products.show', $product->slug ?: $product->id) }}" aria-label="View {{ $product->name }}"><img src="{{ $image }}" alt="{{ $product->name }}" loading="lazy"></a>
