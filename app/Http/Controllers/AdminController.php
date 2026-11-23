@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\SalesReportPdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -75,6 +77,8 @@ class AdminController extends Controller
     public function section(Request $request, string $section)
     {
         abort_unless(array_key_exists($section, self::SECTIONS), 404);
+        if ($section === 'reports') return $this->salesReportPage($request);
+
         $records = $this->records($section, $request);
         $editing = null;
 
@@ -115,6 +119,248 @@ class AdminController extends Controller
             'salesByMonth' => collect(),
             'recentOrders' => collect(),
         ]);
+    }
+
+    public function downloadSalesReport(Request $request)
+    {
+        $report = $this->buildSalesReport($request, true);
+        $pdf = SalesReportPdf::render($report);
+        $filename = 'marketly-sales-report-'.$report['filters']['from'].'-to-'.$report['filters']['to'].'.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($pdf),
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    private function salesReportPage(Request $request)
+    {
+        $report = $this->buildSalesReport($request);
+
+        return view('pages.admin', [
+            'section' => 'reports',
+            'sections' => self::SECTIONS,
+            'adminCategoryTree' => $this->categorySidebarTree(),
+            'records' => $report['records'],
+            'fields' => [],
+            'editing' => null,
+            'stats' => [],
+            'salesByMonth' => collect(),
+            'recentOrders' => collect(),
+            'report' => $report,
+        ]);
+    }
+
+    private function buildSalesReport(Request $request, bool $download = false): array
+    {
+        $validated = $request->validate([
+            'range' => ['nullable', Rule::in(['today', 'yesterday', 'last_7_days', 'last_30_days', 'this_month', 'last_month', 'custom'])],
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'search' => ['nullable', 'string', 'max:120'],
+            'status' => ['nullable', 'string', 'max:50'],
+            'payment_method' => ['nullable', 'string', 'max:100'],
+        ]);
+        $preset = $validated['range'] ?? 'last_30_days';
+        $today = now()->startOfDay();
+        [$start, $end] = match ($preset) {
+            'today' => [$today->copy(), $today->copy()->endOfDay()],
+            'yesterday' => [$today->copy()->subDay(), $today->copy()->subDay()->endOfDay()],
+            'last_7_days' => [$today->copy()->subDays(6), $today->copy()->endOfDay()],
+            'this_month' => [$today->copy()->startOfMonth(), $today->copy()->endOfDay()],
+            'last_month' => [$today->copy()->subMonthNoOverflow()->startOfMonth(), $today->copy()->startOfMonth()->subSecond()],
+            'custom' => [
+                isset($validated['from']) ? Carbon::parse($validated['from'])->startOfDay() : null,
+                isset($validated['to']) ? Carbon::parse($validated['to'])->endOfDay() : null,
+            ],
+            default => [$today->copy()->subDays(29), $today->copy()->endOfDay()],
+        };
+        if (! $start || ! $end) {
+            throw ValidationException::withMessages(['from' => 'Choose both a start and end date for a custom range.']);
+        }
+
+        $filters = [
+            'range' => $preset,
+            'from' => $start->toDateString(),
+            'to' => $end->toDateString(),
+            'search' => trim((string) ($validated['search'] ?? '')),
+            'status' => (string) ($validated['status'] ?? ''),
+            'payment_method' => (string) ($validated['payment_method'] ?? ''),
+        ];
+        $days = max(1, $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1);
+        $previousEnd = $start->copy()->startOfDay()->subSecond();
+        $previousStart = $previousEnd->copy()->startOfDay()->subDays($days - 1);
+        $orders = $this->salesOrdersQuery($filters, $start, $end);
+        $previousOrders = $this->salesOrdersQuery($filters, $previousStart, $previousEnd);
+        $summary = $this->salesSummary(clone $orders);
+        $previousSummary = $this->salesSummary(clone $previousOrders);
+        $currentRevenue = (float) $summary->total_revenue;
+        $previousRevenue = (float) $previousSummary->total_revenue;
+        $paidOrders = (int) $summary->paid_orders;
+        $revenueChange = $previousRevenue > 0
+            ? (($currentRevenue - $previousRevenue) / $previousRevenue) * 100
+            : null;
+
+        $charts = [];
+        foreach (['daily', 'weekly', 'monthly', 'yearly'] as $granularity) {
+            $charts[$granularity] = $this->salesChartSeries(
+                clone $orders,
+                clone $previousOrders,
+                $start,
+                $end,
+                $previousStart,
+                $previousEnd,
+                $granularity
+            );
+        }
+
+        $reportRows = (clone $orders)->select([
+            'order.id', 'order.created_at', 'order.status', 'order.total_amount',
+            'user.name as customer_name',
+        ])->orderByDesc('order.created_at')->orderByDesc('order.id');
+        $records = $download
+            ? $this->decorateSalesReportRows($reportRows->get())
+            : $reportRows->paginate(25)->withQueryString();
+        if (! $download) $records->setCollection($this->decorateSalesReportRows($records->getCollection()));
+
+        return [
+            'summary' => [
+                'total_sales' => (float) $summary->total_sales,
+                'total_orders' => (int) $summary->total_orders,
+                'total_revenue' => $currentRevenue,
+                'average_order_value' => $paidOrders ? $currentRevenue / $paidOrders : 0,
+                'products_sold' => (int) $summary->products_sold,
+                'paid_orders' => $paidOrders,
+            ],
+            'previous_revenue' => $previousRevenue,
+            'revenue_change' => $revenueChange,
+            'charts' => $charts,
+            'records' => $records,
+            'filters' => $filters,
+            'range_label' => $start->format('M j, Y').' to '.$end->format('M j, Y'),
+            'generated_at' => now(),
+            'status_options' => DB::table('order')->whereNotNull('status')->distinct()->orderBy('status')->pluck('status'),
+            'payment_methods' => DB::table('payment')->whereNotNull('method')->distinct()->orderBy('method')->pluck('method'),
+        ];
+    }
+
+    private function salesOrdersQuery(array $filters, Carbon $start, Carbon $end)
+    {
+        $paidPayments = DB::table('order_payment')->where('status', 'paid')
+            ->select('order_id')->selectRaw('SUM(COALESCE(amount, 0)) as paid_amount')->groupBy('order_id');
+        $paidOrderIds = DB::table('order_payment')->where('status', 'paid')->select('order_id')->distinct();
+        $productUnits = DB::table('order_item')->joinSub($paidOrderIds, 'paid_order_ids', function ($join) {
+            $join->on('paid_order_ids.order_id', '=', 'order_item.order_id');
+        })->select('order_item.order_id')->selectRaw('SUM(COALESCE(order_item.quantity, 0)) as units_sold')->groupBy('order_item.order_id');
+
+        $query = DB::table('order')->leftJoin('user', 'user.id', '=', 'order.user_id')
+            ->leftJoinSub($paidPayments, 'paid_totals', 'paid_totals.order_id', '=', 'order.id')
+            ->leftJoinSub($productUnits, 'product_totals', 'product_totals.order_id', '=', 'order.id')
+            ->whereNull('order.deleted_at')
+            ->whereBetween('order.created_at', [$start, $end]);
+
+        if ($filters['status'] !== '') $query->where('order.status', $filters['status']);
+        if ($filters['search'] !== '') {
+            $search = $filters['search'];
+            $query->where(function ($builder) use ($search) {
+                if (ctype_digit($search)) $builder->where('order.id', (int) $search)->orWhere('user.name', 'like', '%'.$search.'%')->orWhere('user.email', 'like', '%'.$search.'%');
+                else $builder->where('user.name', 'like', '%'.$search.'%')->orWhere('user.email', 'like', '%'.$search.'%');
+            });
+        }
+        if ($filters['payment_method'] !== '') {
+            $query->whereExists(function ($subquery) use ($filters) {
+                $subquery->selectRaw('1')->from('order_payment as report_payment')
+                    ->join('payment as report_method', 'report_method.id', '=', 'report_payment.payment_id')
+                    ->whereColumn('report_payment.order_id', 'order.id')
+                    ->where('report_method.method', $filters['payment_method']);
+            });
+        }
+
+        return $query;
+    }
+
+    private function salesSummary($query): object
+    {
+        return $query->selectRaw('COUNT(`order`.`id`) as total_orders,
+            SUM(CASE WHEN `paid_totals`.`order_id` IS NOT NULL THEN COALESCE(`order`.`subtotal`, `order`.`total_amount`, `paid_totals`.`paid_amount`) ELSE 0 END) as total_sales,
+            SUM(COALESCE(`paid_totals`.`paid_amount`, 0)) as total_revenue,
+            SUM(CASE WHEN `paid_totals`.`order_id` IS NOT NULL THEN 1 ELSE 0 END) as paid_orders,
+            SUM(CASE WHEN `paid_totals`.`order_id` IS NOT NULL THEN COALESCE(`product_totals`.`units_sold`, 0) ELSE 0 END) as products_sold')
+            ->first();
+    }
+
+    private function salesChartSeries($currentQuery, $previousQuery, Carbon $start, Carbon $end, Carbon $previousStart, Carbon $previousEnd, string $granularity): array
+    {
+        $days = max(1, $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1);
+        $count = match ($granularity) {
+            'daily' => $days,
+            'weekly' => (int) ceil($days / 7),
+            'monthly' => ($end->year * 12 + $end->month) - ($start->year * 12 + $start->month) + 1,
+            default => $end->year - $start->year + 1,
+        };
+        $count = max(1, $count);
+        $labels = [];
+        for ($index = 0; $index < $count; $index++) {
+            $bucketDate = match ($granularity) {
+                'daily' => $start->copy()->startOfDay()->addDays($index),
+                'weekly' => $start->copy()->startOfDay()->addDays($index * 7),
+                'monthly' => $start->copy()->startOfMonth()->addMonthsNoOverflow($index),
+                default => $start->copy()->startOfYear()->addYears($index),
+            };
+            $labels[] = match ($granularity) {
+                'daily' => $bucketDate->format('M j'),
+                'weekly' => 'Week '.($index + 1),
+                'monthly' => $bucketDate->format('M Y'),
+                default => $bucketDate->format('Y'),
+            };
+        }
+
+        return [
+            'labels' => $labels,
+            'current' => $this->bucketedRevenue($currentQuery, $start, $end, $count),
+            'previous' => $this->bucketedRevenue($previousQuery, $previousStart, $previousEnd, $count),
+        ];
+    }
+
+    private function bucketedRevenue($query, Carbon $start, Carbon $end, int $count): array
+    {
+        $daily = $query->selectRaw('DATE(`order`.`created_at`) as sale_date, SUM(COALESCE(`paid_totals`.`paid_amount`, 0)) as revenue')
+            ->groupByRaw('DATE(`order`.`created_at`)')->get();
+        $totalDays = max(1, $start->copy()->startOfDay()->diffInDays($end->copy()->startOfDay()) + 1);
+        $values = array_fill(0, $count, 0.0);
+
+        foreach ($daily as $row) {
+            $offset = $start->copy()->startOfDay()->diffInDays(Carbon::parse($row->sale_date)->startOfDay());
+            $index = min($count - 1, (int) floor($offset * $count / $totalDays));
+            $values[$index] += (float) $row->revenue;
+        }
+
+        return $values;
+    }
+
+    private function decorateSalesReportRows($rows)
+    {
+        if ($rows->isEmpty()) return $rows;
+        $ids = $rows->pluck('id')->all();
+        $products = DB::table('order_item')->leftJoin('product_variant', 'product_variant.id', '=', 'order_item.product_variant_id')
+            ->leftJoin('product', 'product.id', '=', 'product_variant.product_id')->whereIn('order_item.order_id', $ids)
+            ->orderBy('order_item.id')->get(['order_item.order_id', 'order_item.product_name', 'product.name as current_product_name', 'order_item.quantity'])
+            ->groupBy('order_id');
+        $methods = DB::table('order_payment')->leftJoin('payment', 'payment.id', '=', 'order_payment.payment_id')
+            ->whereIn('order_payment.order_id', $ids)->get(['order_payment.order_id', 'payment.method'])->groupBy('order_id');
+
+        return $rows->map(function ($order) use ($products, $methods) {
+            $orderItems = $products->get($order->id, collect());
+            $order->products = $orderItems->map(function ($item) {
+                $name = $item->product_name ?: ($item->current_product_name ?: 'Product');
+                return $name.' x '.max(1, (int) $item->quantity);
+            })->implode(', ') ?: '—';
+            $order->payment_method = $methods->get($order->id, collect())->pluck('method')->filter()->unique()->implode(', ') ?: '—';
+
+            return $order;
+        });
     }
 
     public function customerDetails(int $customer)
