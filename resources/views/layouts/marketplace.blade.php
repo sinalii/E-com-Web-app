@@ -47,9 +47,26 @@
     @unless(request()->routeIs('admin.*'))
     <nav class="category-bar" aria-label="Main navigation"><div class="site-container category-bar-inner">
         <button class="all-categories" type="button" aria-controls="category-drawer" aria-expanded="false" data-category-drawer-open><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"></path></svg>All Categories</button>
-        <div class="nav-categories">@foreach(($categories ?? collect())->take(5) as $category)<a href="{{ route('shop', ['category' => $category->id]) }}">{{ $category->name }}</a>@endforeach</div>
+        <div class="nav-categories">
+            @foreach(($categories ?? collect())->take(5) as $category)
+                @php
+                    $requestedCategory = (string) request()->query('category', '');
+                    $categoryIsActive = $requestedCategory !== '' && (
+                        $requestedCategory === (string) $category->id
+                        || $requestedCategory === (string) $category->slug
+                        || $category->children->contains(fn ($child) => $requestedCategory === (string) $child->id || $requestedCategory === (string) $child->slug)
+                    );
+                @endphp
+                <a class="{{ $categoryIsActive ? 'is-active' : '' }}" href="{{ route('shop', ['category' => $category->id]) }}" @if($categoryIsActive) aria-current="page" @endif>{{ $category->name }}</a>
+            @endforeach
+        </div>
         @unless(auth()->check() && auth()->user()->isAdmin() && request()->routeIs('admin.*'))
-        <div class="nav-promos"><a href="{{ route('shop') }}?deal=1">Today's Deals</a><a href="{{ route('shop', ['sort' => 'orders']) }}">Best Sellers</a><a href="{{ route('shop', ['sort' => 'newest']) }}">New Arrivals</a><a href="{{ route('contact') }}">Customer Support</a></div>
+        <div class="nav-promos">
+            <a class="{{ request()->boolean('deal') ? 'is-active' : '' }}" href="{{ route('shop', ['deal' => 1]) }}" @if(request()->boolean('deal')) aria-current="page" @endif>Today's Deals</a>
+            <a class="{{ request('sort') === 'orders' ? 'is-active' : '' }}" href="{{ route('shop', ['sort' => 'orders']) }}" @if(request('sort') === 'orders') aria-current="page" @endif>Best Sellers</a>
+            <a class="{{ request('sort') === 'newest' ? 'is-active' : '' }}" href="{{ route('shop', ['sort' => 'newest']) }}" @if(request('sort') === 'newest') aria-current="page" @endif>New Arrivals</a>
+            <a class="{{ request()->routeIs('contact') ? 'is-active' : '' }}" href="{{ route('contact') }}" @if(request()->routeIs('contact')) aria-current="page" @endif>Customer Support</a>
+        </div>
         @endunless
     </div></nav>
     @endunless
